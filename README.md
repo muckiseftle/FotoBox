@@ -55,18 +55,21 @@ am Kiosk-Bildschirm genauso wie vom Handy aus.
 
 ## 🎛️ Hardware-Unterstützung
 
-SnapStation läuft auf allen drei Systemen — der Funktionsumfang hängt aber von der Plattform ab:
+SnapStation ist auf **allen drei Systemen voll funktionsfähig** — echte Aufnahme über
+eine **Webcam** (USB oder eingebaut) und echter **Druck** auf den Standard-/gewählten
+Drucker:
 
-| Plattform | Web-Interface, Chroma-Key, Galerie, Teilen, Branding | Echte DSLR (gphoto2) | Drucken (CUPS) |
-|-----------|:--:|:--:|:--:|
-| **Linux** (Ubuntu, Station) | ✅ | ✅ | ✅ |
-| **macOS** | ✅ | ⏳ geplant | ✅ (CUPS) |
-| **Windows** | ✅ | ❌ | ❌ |
+| Plattform | Web/Chroma/Teilen/Branding | Webcam (Aufnahme + Live-View) | DSLR via gphoto2 | Drucken |
+|-----------|:--:|:--:|:--:|:--:|
+| **Linux** (Ubuntu) | ✅ | ✅ (v4l2) | ✅ | ✅ CUPS |
+| **macOS** | ✅ | ✅ (AVFoundation) | ⏳ optional | ✅ CUPS |
+| **Windows** | ✅ | ✅ (Media Foundation) | – | ✅ (Standarddrucker) |
 
-> Auf Windows/macOS dient SnapStation zum **Ausprobieren, Einrichten und Vorführen** —
-> mit einer **Mock-Kamera** (animiertes Testbild) und einem **Mock-Drucker**. Die
-> vollwertige Foto-Box mit echter Spiegelreflexkamera und Dye-Sub-Drucker läuft auf
-> **Ubuntu**. So lässt sich die ganze Oberfläche bequem am Schreibtisch vorbereiten.
+- **Kamera-Auswahl** (auto): tethered **DSLR** (Linux) → **Webcam** (alle Systeme) → Mock.
+  Erzwingbar per `SNAP_CAMERA=webcam|gphoto|mock`.
+- **Druck:** Linux/macOS über **CUPS** (Dye-Sub-Treiber), Windows über den Windows-Druckpfad.
+- **macOS:** beim ersten Start die **Kamera-Freigabe** bestätigen (TCC-Abfrage).
+- Ohne angeschlossene Kamera/Drucker läuft alles weiter mit Mock-Backends (zum Einrichten).
 
 ## ⚙️ Konfiguration
 

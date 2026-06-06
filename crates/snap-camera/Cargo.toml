@@ -14,6 +14,10 @@ serde = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 
+# Cross-platform webcam capture (Windows Media Foundation, macOS AVFoundation,
+# Linux v4l2) — real camera + live view on every desktop OS.
+nokhwa = { version = "0.10", features = ["input-native"] }
+
 # Real DSLR backend: only on Linux. On other targets MockCamera is used.
 [target.'cfg(target_os = "linux")'.dependencies]
 gphoto2 = "3.4"

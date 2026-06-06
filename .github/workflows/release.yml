@@ -59,7 +59,7 @@ jobs:
       # System libraries for the real camera/printing backends (Linux only).
       - name: Linux system deps
         if: matrix.os == 'ubuntu-latest'
-        run: sudo apt-get update && sudo apt-get install -y libgphoto2-dev libcups2-dev
+        run: sudo apt-get update && sudo apt-get install -y libgphoto2-dev libcups2-dev libv4l-dev clang
 
       - name: Build release binary
         run: cargo build --release --bin snapstation
@@ -103,6 +103,7 @@ jobs:
             <key>CFBundleVersion</key><string>0.1.0</string>
             <key>CFBundleExecutable</key><string>SnapStation</string>
             <key>CFBundlePackageType</key><string>APPL</string>
+            <key>NSCameraUsageDescription</key><string>SnapStation benötigt die Kamera für Foto-Aufnahmen.</string>
           </dict></plist>
           PLIST
           hdiutil create -volname SnapStation -srcfolder SnapStation.app -ov -format UDZO dist/SnapStation-macos.dmg

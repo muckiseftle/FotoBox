@@ -10,6 +10,7 @@
 
 pub mod actor;
 pub mod mock;
+pub mod webcam;
 
 #[cfg(target_os = "linux")]
 pub mod gphoto;
@@ -19,31 +20,75 @@ use std::sync::Arc;
 
 pub use actor::{spawn, CameraHandle, PreviewGuard};
 pub use mock::MockCamera;
+pub use webcam::WebcamCamera;
 
 /// Detect and spawn the best available camera backend.
 ///
-/// On Linux it tries the real gphoto2 DSLR backend and falls back to the mock
-/// if no camera is connected. On other platforms — and whenever the environment
-/// variable `SNAP_CAMERA=mock` is set — it always uses the mock backend.
+/// Auto-detection order: DSLR via gphoto2 (Linux) → **webcam** (all platforms) →
+/// mock. Override with `SNAP_CAMERA=mock|webcam|gphoto`. The webcam path is what
+/// makes SnapStation a real photo booth on Windows and macOS, not just Linux.
 pub fn spawn_auto() -> CameraHandle {
-    let force_mock = std::env::var("SNAP_CAMERA")
-        .map(|v| v == "mock")
-        .unwrap_or(false);
+    spawn(Box::new(detect_backend))
+}
 
-    #[cfg(target_os = "linux")]
-    if !force_mock {
-        match gphoto::GPhotoCamera::detect() {
-            Ok(cam) => {
-                tracing::info!("camera: using gphoto2 DSLR backend");
-                return spawn(Box::new(cam));
-            }
-            Err(e) => tracing::warn!("camera: no DSLR detected ({e}); using mock"),
+/// Choose a camera backend. Runs on the actor thread (so non-Send SDK handles
+/// like the webcam are fine), and always returns something — falling back to the
+/// mock so the app keeps running even with no camera attached.
+fn detect_backend() -> Box<dyn CameraBackend> {
+    let choice = std::env::var("SNAP_CAMERA").unwrap_or_default();
+
+    match choice.as_str() {
+        "mock" => {
+            tracing::info!("camera: mock backend (SNAP_CAMERA=mock)");
+            return Box::new(MockCamera::new());
         }
+        "webcam" => return open_webcam().unwrap_or_else(mock_fallback),
+        #[cfg(target_os = "linux")]
+        "gphoto" | "dslr" => return open_gphoto().unwrap_or_else(mock_fallback),
+        _ => {}
     }
 
-    let _ = force_mock;
-    tracing::info!("camera: using mock backend");
-    spawn(Box::new(MockCamera::new()))
+    // Auto: prefer a tethered DSLR on Linux, then any webcam, then mock.
+    #[cfg(target_os = "linux")]
+    if let Some(b) = open_gphoto() {
+        return b;
+    }
+    if let Some(b) = open_webcam() {
+        return b;
+    }
+    mock_fallback()
+}
+
+fn mock_fallback() -> Box<dyn CameraBackend> {
+    tracing::warn!("camera: no real camera found; using mock backend");
+    Box::new(MockCamera::new())
+}
+
+fn open_webcam() -> Option<Box<dyn CameraBackend>> {
+    match webcam::WebcamCamera::open() {
+        Ok(cam) => {
+            tracing::info!("camera: using webcam backend");
+            Some(Box::new(cam))
+        }
+        Err(e) => {
+            tracing::warn!("camera: webcam unavailable ({e})");
+            None
+        }
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn open_gphoto() -> Option<Box<dyn CameraBackend>> {
+    match gphoto::GPhotoCamera::detect() {
+        Ok(cam) => {
+            tracing::info!("camera: using gphoto2 DSLR backend");
+            Some(Box::new(cam))
+        }
+        Err(e) => {
+            tracing::warn!("camera: no DSLR detected ({e})");
+            None
+        }
+    }
 }
 
 /// Static description of a connected camera.
@@ -88,8 +133,9 @@ pub enum CameraError {
 }
 
 /// A camera backend. Methods are synchronous and blocking — they run on the
-/// dedicated actor thread, never on the async runtime.
-pub trait CameraBackend: Send {
+/// dedicated actor thread, never on the async runtime. The backend is built on
+/// that thread and never crosses threads, so it need not be `Send`.
+pub trait CameraBackend {
     /// Static info about the connected camera.
     fn info(&self) -> CameraInfo;
 

@@ -30,13 +30,13 @@ pub struct CameraHandle {
     cmd_tx: mpsc::Sender<Command>,
     preview_rx: watch::Receiver<PreviewFrame>,
     state_rx: watch::Receiver<CameraState>,
-    info: Arc<CameraInfo>,
+    info_rx: watch::Receiver<CameraInfo>,
 }
 
 impl CameraHandle {
-    /// Static info about the camera this actor owns.
-    pub fn info(&self) -> &CameraInfo {
-        &self.info
+    /// Current info about the camera this actor owns (a snapshot).
+    pub fn info(&self) -> CameraInfo {
+        self.info_rx.borrow().clone()
     }
 
     /// Trigger the shutter and return the captured JPEG. Any in-progress
@@ -98,27 +98,39 @@ impl Drop for PreviewGuard {
 }
 
 /// Spawn the camera actor on a dedicated thread, returning an async handle.
-pub fn spawn(backend: Box<dyn CameraBackend>) -> CameraHandle {
-    let info = Arc::new(backend.info());
+///
+/// The backend is **constructed on the actor thread** via `make` (which must be
+/// `Send`, but the backend it returns need not be — important for webcam SDK
+/// handles that are not `Send`). Info is published once the backend is ready.
+pub fn spawn(make: Box<dyn FnOnce() -> Box<dyn CameraBackend> + Send>) -> CameraHandle {
     let (cmd_tx, cmd_rx) = mpsc::channel::<Command>(32);
     let (preview_tx, preview_rx) = watch::channel::<PreviewFrame>(None);
     let (state_tx, state_rx) = watch::channel(CameraState::Idle);
+    let (info_tx, info_rx) = watch::channel(CameraInfo {
+        model: "Verbinde …".to_string(),
+        port: String::new(),
+        backend: "none",
+    });
 
     std::thread::Builder::new()
         .name("camera-actor".to_string())
-        .spawn(move || run(backend, cmd_rx, preview_tx, state_tx))
+        .spawn(move || {
+            let mut backend = make();
+            let _ = info_tx.send(backend.info());
+            run(&mut *backend, cmd_rx, preview_tx, state_tx);
+        })
         .expect("failed to spawn camera-actor thread");
 
     CameraHandle {
         cmd_tx,
         preview_rx,
         state_rx,
-        info,
+        info_rx,
     }
 }
 
 fn run(
-    mut backend: Box<dyn CameraBackend>,
+    backend: &mut dyn CameraBackend,
     mut cmd_rx: mpsc::Receiver<Command>,
     preview_tx: watch::Sender<PreviewFrame>,
     state_tx: watch::Sender<CameraState>,
@@ -141,7 +153,7 @@ fn run(
             loop {
                 match cmd_rx.try_recv() {
                     Ok(cmd) => {
-                        if handle(cmd, &mut backend, &mut viewers, &set_state) {
+                        if handle(cmd, backend, &mut viewers, &set_state) {
                             return;
                         }
                     }
@@ -166,7 +178,7 @@ fn run(
             set_state(CameraState::Idle);
             match cmd_rx.blocking_recv() {
                 Some(cmd) => {
-                    if handle(cmd, &mut backend, &mut viewers, &set_state) {
+                    if handle(cmd, backend, &mut viewers, &set_state) {
                         return;
                     }
                 }
@@ -179,7 +191,7 @@ fn run(
 /// Handle one command. Returns `true` if the actor should shut down.
 fn handle(
     cmd: Command,
-    backend: &mut Box<dyn CameraBackend>,
+    backend: &mut dyn CameraBackend,
     viewers: &mut usize,
     set_state: &impl Fn(CameraState),
 ) -> bool {

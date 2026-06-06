@@ -12,6 +12,7 @@
 
 mod cups;
 mod mock;
+mod windows;
 
 pub use cups::map_reason;
 
@@ -73,30 +74,49 @@ pub enum PrintError {
     Failed(String),
 }
 
-/// The print service: picks CUPS on Linux, otherwise a mock printer.
+/// The print service: CUPS on Linux/macOS, a native backend on Windows, or a
+/// mock printer (forced via `SNAP_PRINTER=mock`, or where nothing else fits).
 pub enum PrintService {
     Cups,
+    Windows,
     Mock(Mutex<mock::MockState>),
 }
 
 impl PrintService {
-    /// Choose the backend: CUPS on Linux (unless `SNAP_PRINTER=mock`), else mock.
+    /// Choose the backend. `SNAP_PRINTER=mock` always forces the mock printer.
     pub fn detect() -> Self {
-        let force_mock = std::env::var("SNAP_PRINTER")
+        if std::env::var("SNAP_PRINTER")
             .map(|v| v == "mock")
-            .unwrap_or(false);
-        if !force_mock && cfg!(target_os = "linux") {
-            tracing::info!("print: using CUPS backend");
-            PrintService::Cups
-        } else {
-            tracing::info!("print: using mock printer backend");
-            PrintService::Mock(Mutex::new(mock::MockState::new()))
+            .unwrap_or(false)
+        {
+            tracing::info!("print: using mock printer backend (SNAP_PRINTER=mock)");
+            return PrintService::Mock(Mutex::new(mock::MockState::new()));
         }
+        Self::detect_native()
+    }
+
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
+    fn detect_native() -> Self {
+        tracing::info!("print: using CUPS backend");
+        PrintService::Cups
+    }
+
+    #[cfg(target_os = "windows")]
+    fn detect_native() -> Self {
+        tracing::info!("print: using Windows backend");
+        PrintService::Windows
+    }
+
+    #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+    fn detect_native() -> Self {
+        tracing::info!("print: using mock printer backend");
+        PrintService::Mock(Mutex::new(mock::MockState::new()))
     }
 
     pub async fn list_printers(&self) -> Result<Vec<PrinterInfo>, PrintError> {
         match self {
             PrintService::Cups => cups::list().await,
+            PrintService::Windows => windows::list().await,
             PrintService::Mock(_) => Ok(mock::list()),
         }
     }
@@ -110,6 +130,7 @@ impl PrintService {
     ) -> Result<String, PrintError> {
         match self {
             PrintService::Cups => cups::submit(printer, file, opts).await,
+            PrintService::Windows => windows::submit(printer, file, opts).await,
             PrintService::Mock(state) => {
                 let mut guard = state.lock().await;
                 mock::submit(&mut guard, printer)
@@ -120,6 +141,7 @@ impl PrintService {
     pub async fn job_status(&self, printer: &str, job_id: &str) -> Result<JobState, PrintError> {
         match self {
             PrintService::Cups => cups::job_status(printer, job_id).await,
+            PrintService::Windows => windows::job_status(printer, job_id).await,
             PrintService::Mock(state) => {
                 let guard = state.lock().await;
                 Ok(mock::job_status(&guard, job_id))
