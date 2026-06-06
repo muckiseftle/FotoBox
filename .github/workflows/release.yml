@@ -1,0 +1,123 @@
+name: Release
+
+# Builds easy-to-run packages for Windows, macOS and Linux and attaches them to
+# a GitHub Release whenever a version tag (v*) is pushed.
+#
+# NOTE: this workflow runs only on GitHub's CI runners (it cannot be validated
+# on the Windows dev host). Expect to refine packaging details on the first run.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  # Build the PWA once; every OS build embeds the same assets via rust-embed.
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm ci || npm install
+          npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: frontend-assets
+          path: crates/snap-web/assets
+
+  package:
+    needs: frontend
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            label: windows-x86_64
+          - os: macos-latest
+            label: macos
+          - os: ubuntu-latest
+            label: linux-x86_64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Restore prebuilt frontend assets
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-assets
+          path: crates/snap-web/assets
+
+      # System libraries for the real camera/printing backends (Linux only).
+      - name: Linux system deps
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get update && sudo apt-get install -y libgphoto2-dev libcups2-dev
+
+      - name: Build release binary
+        run: cargo build --release --bin snapstation
+
+      # ---- Windows: portable zip + optional Inno Setup installer ----
+      - name: Package Windows
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          $stage = "stage/SnapStation"
+          New-Item -ItemType Directory -Force $stage | Out-Null
+          Copy-Item target/release/snapstation.exe "$stage/SnapStation.exe"
+          Copy-Item README.md "$stage/README.md"
+          Compress-Archive -Path "$stage/*" -DestinationPath "dist/SnapStation-windows-x86_64.zip" -Force
+      - name: Build Windows installer (Inno Setup)
+        if: matrix.os == 'windows-latest'
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+          & "$env:ProgramFiles(x86)\Inno Setup 6\ISCC.exe" installer/windows/snapstation.iss
+          Copy-Item installer/windows/Output/*.exe dist/ -ErrorAction SilentlyContinue
+
+      # ---- macOS: .app bundle inside a .dmg ----
+      - name: Package macOS
+        if: matrix.os == 'macos-latest'
+        run: |
+          mkdir -p dist
+          APP="SnapStation.app/Contents/MacOS"
+          mkdir -p "$APP" "SnapStation.app/Contents/Resources"
+          cp target/release/snapstation "$APP/SnapStation"
+          cat > SnapStation.app/Contents/Info.plist <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>CFBundleName</key><string>SnapStation</string>
+            <key>CFBundleDisplayName</key><string>SnapStation</string>
+            <key>CFBundleIdentifier</key><string>com.snapstation.app</string>
+            <key>CFBundleVersion</key><string>0.1.0</string>
+            <key>CFBundleExecutable</key><string>SnapStation</string>
+            <key>CFBundlePackageType</key><string>APPL</string>
+          </dict></plist>
+          PLIST
+          hdiutil create -volname SnapStation -srcfolder SnapStation.app -ov -format UDZO dist/SnapStation-macos.dmg
+
+      # ---- Linux: portable tarball (binary + station installer) ----
+      - name: Package Linux
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          mkdir -p dist stage/SnapStation
+          cp target/release/snapstation stage/SnapStation/snapstation
+          cp install.sh stage/SnapStation/install.sh
+          cp README.md stage/SnapStation/README.md
+          cp packaging/snapstation.service stage/SnapStation/snapstation.service
+          tar -C stage -czf dist/SnapStation-linux-x86_64.tar.gz SnapStation
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*

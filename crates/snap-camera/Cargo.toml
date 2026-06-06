@@ -1,0 +1,22 @@
+[package]
+name = "snap-camera"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+snap-core = { workspace = true }
+tokio = { workspace = true }
+bytes = { workspace = true }
+image = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+# Real DSLR backend: only on Linux. On other targets MockCamera is used.
+[target.'cfg(target_os = "linux")'.dependencies]
+gphoto2 = "3.4"
+
+[dev-dependencies]
+tokio = { workspace = true }

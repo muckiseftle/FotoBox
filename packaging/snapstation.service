@@ -1,0 +1,35 @@
+[Unit]
+Description=SnapStation Photo Booth
+Documentation=https://github.com/your-org/snapstation
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/snapstation
+Restart=always
+RestartSec=2
+
+# Dedicated unprivileged service user (created by install.sh).
+User=snapstation
+Group=snapstation
+# Hardware access: USB camera (plugdev), video, printing (lp).
+SupplementaryGroups=plugdev video lp
+
+# Persistent state at /var/lib/snapstation (created & owned automatically).
+StateDirectory=snapstation
+Environment=SNAP_DATA_DIR=/var/lib/snapstation
+# Serve on port 80 so phones reach it without a port suffix.
+Environment=SNAP_BIND=0.0.0.0:80
+# Headless station: do not try to open a desktop browser.
+Environment=SNAP_NO_OPEN=1
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+
+# Hardening (relaxed where hardware access requires it).
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

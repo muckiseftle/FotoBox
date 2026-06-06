@@ -1,0 +1,22 @@
+[package]
+name = "snap-bin"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "snapstation"
+path = "src/main.rs"
+
+[dependencies]
+snap-core = { workspace = true }
+snap-camera = { workspace = true }
+snap-print = { workspace = true }
+snap-web = { workspace = true }
+
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow = { workspace = true }
+open = "5"

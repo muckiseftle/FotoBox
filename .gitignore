@@ -1,0 +1,28 @@
+/target
+**/*.rs.bk
+Cargo.lock.orig
+
+# Runtime data (database, captured photos)
+/data
+/var
+
+# Frontend
+/frontend/node_modules
+/frontend/dist
+
+# Built frontend assets are embedded at compile time; keep only a placeholder
+# so a fresh clone still compiles before `npm run build` is run.
+/crates/snap-web/assets/*
+!/crates/snap-web/assets/.gitkeep
+
+# Packaging / build output
+/dist
+/stage
+/installer/windows/Output
+
+# Editor / local preview config (machine-specific paths)
+/.claude
+
+# Env / secrets
+.env
+*.local

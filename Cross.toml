@@ -1,0 +1,19 @@
+# cross-rs configuration for building the multi-arch release binaries.
+#
+# The only system build dependencies are libgphoto2 (DSLR) and CUPS (printing),
+# both pulled in for the *target* architecture via multiarch. The chroma-key
+# core is pure Rust. The optional `ai` (ONNX) feature is intentionally NOT built
+# here — it is 64-bit only and added in Phase 4.
+#
+# NOTE: this has not yet been validated by a real CI run; expect minor tweaks to
+# the pkg-config / sysroot wiring on first execution.
+
+[build.env]
+passthrough = ["PKG_CONFIG_ALLOW_CROSS=1"]
+
+[build]
+pre-build = [
+    "dpkg --add-architecture $CROSS_DEB_ARCH",
+    "apt-get update",
+    "apt-get install --assume-yes --no-install-recommends pkg-config libgphoto2-dev:$CROSS_DEB_ARCH libcups2-dev:$CROSS_DEB_ARCH",
+]

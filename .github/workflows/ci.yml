@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  # Fast checks that run on the host (no camera/printer hardware needed):
+  # the mock camera makes the whole web/imaging stack testable in CI.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+      - name: System dev libraries
+        run: sudo apt-get update && sudo apt-get install -y libgphoto2-dev libcups2-dev
+      - name: Build the frontend (required for rust-embed)
+        working-directory: frontend
+        run: |
+          npm ci || npm install
+          npm run build
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo test --workspace

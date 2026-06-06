@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand: #0ea5e9;
+  --color-ink: #e5e7eb;
+  --color-bg: #0b0f17;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Disable text selection in the kiosk to avoid accidental highlights on touch. */
+.kiosk {
+  user-select: none;
+}

@@ -1,0 +1,22 @@
+[package]
+name = "snap-imaging"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+snap-core = { workspace = true }
+image = { workspace = true }
+rayon = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+# NOTE: Optional heavy backends are added in Phase 4, with versions verified then:
+#   * `ai`            -> ort (ONNX) + ndarray  (64-bit only, ONNX background removal)
+#   * `opencv-refine` -> opencv               (guided-filter edge refinement / despill)
+# They are intentionally absent now to keep the Phase 0 skeleton lean.
+
+[features]
+default = []
