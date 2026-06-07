@@ -15,6 +15,12 @@ use serde_json::{json, Value};
 const OWNER: &str = "muckiseftle";
 const REPO: &str = "FotoBox";
 
+/// Running version, with an optional `SNAP_FAKE_VERSION` override so the update
+/// path can be exercised locally (pretend to be an older build).
+fn current_version() -> String {
+    std::env::var("SNAP_FAKE_VERSION").unwrap_or_else(|_| snap_core::VERSION.to_string())
+}
+
 #[cfg(target_os = "windows")]
 const UPD_TARGET: &str = "windows-x86_64";
 #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
@@ -33,8 +39,24 @@ const BIN_NAME: &str = "SnapStation.exe";
 #[cfg(not(target_os = "windows"))]
 const BIN_NAME: &str = "snapstation";
 
+/// Asset disambiguator: the release contains several files whose names include
+/// the target string. Restrict the self-updater to the right one.
+///
+/// Windows ships a *raw* `…-windows-x86_64.exe` for the updater (the
+/// `Compress-Archive` zip is not readable by `self_update`'s unzip), so the
+/// downloaded file is self-replaced directly without extraction.
+#[cfg(target_os = "windows")]
+const UPD_IDENTIFIER: &str = "-windows-x86_64.exe";
+#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+const UPD_IDENTIFIER: &str = ".tar.gz";
+#[cfg(not(any(
+    target_os = "windows",
+    all(target_os = "linux", target_arch = "x86_64")
+)))]
+const UPD_IDENTIFIER: &str = "";
+
 pub async fn check(_admin: AdminAuth) -> Result<Json<Value>, ApiError> {
-    let current = snap_core::VERSION.to_string();
+    let current = current_version();
     let latest = tokio::task::spawn_blocking(fetch_latest)
         .await
         .map_err(|e| ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
@@ -99,12 +121,19 @@ fn do_update() -> Result<String, String> {
         .repo_name(REPO)
         .bin_name(BIN_NAME)
         .target(UPD_TARGET)
+        .identifier(UPD_IDENTIFIER)
         .show_download_progress(false)
         .no_confirm(true)
-        .current_version(snap_core::VERSION)
+        .current_version(&current_version())
         .build()
-        .map_err(|e| e.to_string())?
+        .map_err(|e| {
+            tracing::error!("update: configure failed: {e}");
+            format!("Update-Konfiguration fehlgeschlagen: {e}")
+        })?
         .update()
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| {
+            tracing::error!("update: apply failed: {e}");
+            format!("Update fehlgeschlagen: {e}")
+        })?;
     Ok(status.version().to_string())
 }

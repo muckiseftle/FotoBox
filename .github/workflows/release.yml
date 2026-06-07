@@ -41,10 +41,13 @@ jobs:
         include:
           - os: windows-latest
             label: windows-x86_64
+            short: windows
           - os: macos-latest
             label: macos
+            short: macos
           - os: ubuntu-latest
             label: linux-x86_64
+            short: linux
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -75,6 +78,9 @@ jobs:
           Copy-Item target/release/snapstation.exe "$stage/SnapStation.exe"
           Copy-Item README.md "$stage/README.md"
           Compress-Archive -Path "$stage/*" -DestinationPath "dist/SnapStation-windows-x86_64.zip" -Force
+          # Raw .exe asset for the in-app self-updater (no extraction needed;
+          # the zip created by Compress-Archive is not readable by self_update).
+          Copy-Item target/release/snapstation.exe "dist/SnapStation-windows-x86_64.exe"
       - name: Build Windows installer (Inno Setup)
         if: matrix.os == 'windows-latest'
         continue-on-error: true
@@ -125,19 +131,22 @@ jobs:
           tar -C stage -czf dist/SnapStation-linux-x86_64.tar.gz SnapStation
 
       # SHA-256 checksums so users can verify downloads (no code signing).
+      # NOTE: the checksum filename must NOT contain the self-updater's target
+      # string (e.g. "windows-x86_64"), or older clients could mistake it for
+      # the program archive. Use the short OS name instead.
       - name: Checksums (Windows)
         if: matrix.os == 'windows-latest'
         shell: pwsh
         run: |
           Get-ChildItem dist -File | Where-Object { $_.Name -notlike '*SHA256SUMS*' } | ForEach-Object {
             "{0}  {1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name
-          } | Out-File -Encoding ascii "dist/SHA256SUMS-${{ matrix.label }}.txt"
+          } | Out-File -Encoding ascii "dist/SHA256SUMS-${{ matrix.short }}.txt"
       - name: Checksums (Unix)
         if: matrix.os != 'windows-latest'
         run: |
           cd dist
           if command -v sha256sum >/dev/null; then SUM=sha256sum; else SUM="shasum -a 256"; fi
-          $SUM $(ls | grep -v SHA256SUMS) > "SHA256SUMS-${{ matrix.label }}.txt"
+          $SUM $(ls | grep -v SHA256SUMS) > "SHA256SUMS-${{ matrix.short }}.txt"
 
       - name: Upload to release
         uses: softprops/action-gh-release@v2

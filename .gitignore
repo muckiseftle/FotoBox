@@ -34,3 +34,7 @@ preview-data/
 /branding/node_modules
 /branding/package.json
 /branding/package-lock.json
+
+# Local update-test scratch dirs
+tmp-update-test/
+tmp-zipcheck/
