@@ -164,6 +164,20 @@ export const api = {
     }),
   logout: () => request<{ ok: boolean }>('/api/logout', { method: 'POST' }),
 
+  // Software update (GitHub)
+  updateCheck: () =>
+    request<{
+      current: string;
+      latest: string;
+      update_available: boolean;
+      release_url: string;
+      can_self_update: boolean;
+    }>('/api/update/check'),
+  updateApply: () =>
+    request<{ ok: boolean; updated_to: string; restart_required: boolean }>('/api/update/apply', {
+      method: 'POST',
+    }),
+
   // Camera / capture settings
   getCamera: () => request<CameraInfo>('/api/camera'),
   setCamera: (s: CameraSettings) =>

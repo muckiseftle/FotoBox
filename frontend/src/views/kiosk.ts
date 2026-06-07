@@ -46,8 +46,8 @@ export function renderKiosk(app: HTMLElement): void {
     'button',
     {
       class:
-        'absolute bottom-8 left-1/2 -translate-x-1/2 w-24 h-24 rounded-full bg-white/90 ' +
-        'active:scale-95 transition-transform shadow-2xl ring-4 ring-brand/60',
+        'w-24 h-24 rounded-full bg-white/90 active:scale-95 transition-transform ' +
+        'shadow-2xl ring-4 ring-brand/60 shrink-0',
       'aria-label': t('shutter'),
     },
     h('span', { class: 'block w-16 h-16 rounded-full bg-brand mx-auto' }),
@@ -81,7 +81,9 @@ export function renderKiosk(app: HTMLElement): void {
     'a',
     {
       href: '#/gallery',
-      class: 'text-slate-100/90 hover:text-white text-sm font-medium',
+      class:
+        'bg-black/40 hover:bg-black/60 text-white text-sm font-medium px-4 py-3 ' +
+        'rounded-xl backdrop-blur whitespace-nowrap shrink-0',
       'aria-label': t('gallery'),
     },
     '🖼 ' + t('gallery'),
@@ -103,9 +105,17 @@ export function renderKiosk(app: HTMLElement): void {
   const topRight = h(
     'div',
     { class: 'absolute top-4 right-4 flex items-center gap-4' },
-    galleryBtn,
     langToggle,
     gear,
+  );
+
+  // Bottom bar: gallery button beside the (centred) shutter.
+  const bottomBar = h(
+    'div',
+    { class: 'absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-6' },
+    galleryBtn,
+    shutter,
+    h('div', { class: 'w-28 shrink-0' }), // spacer keeps the shutter centred
   );
 
   const stage = h(
@@ -115,7 +125,7 @@ export function renderKiosk(app: HTMLElement): void {
     preview,
     overlay,
     brand,
-    shutter,
+    bottomBar,
     topRight,
   );
   app.append(stage);

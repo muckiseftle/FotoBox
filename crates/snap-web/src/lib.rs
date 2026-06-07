@@ -13,6 +13,7 @@ mod print;
 mod share;
 mod state;
 mod stream;
+mod update;
 
 pub use state::AppState;
 
@@ -78,6 +79,8 @@ pub fn router(state: AppState) -> Router {
         )
         .route("/backup/targets", get(comfort::backup_targets))
         .route("/backup", post(comfort::backup))
+        .route("/update/check", get(update::check))
+        .route("/update/apply", post(update::apply))
         // Allow image uploads (backgrounds, logos) larger than the 2 MB default.
         .layer(axum::extract::DefaultBodyLimit::max(25 * 1024 * 1024));
 

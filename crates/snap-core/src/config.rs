@@ -53,13 +53,13 @@ impl Config {
 }
 
 fn default_data_dir() -> PathBuf {
-    #[cfg(target_os = "linux")]
-    {
-        PathBuf::from("/var/lib/snapstation")
-    }
-    #[cfg(not(target_os = "linux"))]
-    {
-        // Development hosts (Windows/macOS): keep data alongside the project.
-        PathBuf::from("data")
-    }
+    // A per-user, writable location so SnapStation runs WITHOUT admin rights even
+    // when installed under Program Files / Applications:
+    //   Windows: %APPDATA%\SnapStation
+    //   macOS:   ~/Library/Application Support/SnapStation
+    //   Linux:   ~/.local/share/SnapStation
+    // The systemd service overrides this via SNAP_DATA_DIR=/var/lib/snapstation.
+    dirs::data_dir()
+        .map(|d| d.join("SnapStation"))
+        .unwrap_or_else(|| PathBuf::from("data"))
 }

@@ -3,12 +3,15 @@
 ; Produces a normal installer with Start-menu/desktop shortcuts and an uninstaller.
 
 #define MyAppName "SnapStation"
-#define MyAppVersion "0.1.0"
+#define MyAppVersion "0.4.0"
 
 [Setup]
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher=SnapStation
+; Per-user install: no admin rights required, and the install dir stays
+; writable so the in-app updater can replace the binary.
+PrivilegesRequired=lowest
 DefaultDirName={autopf}\SnapStation
 DefaultGroupName=SnapStation
 DisableProgramGroupPage=yes
