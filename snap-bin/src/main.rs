@@ -30,6 +30,17 @@ async fn main() -> anyhow::Result<()> {
     let camera = snap_camera::spawn_auto();
     let printer = Arc::new(snap_print::PrintService::detect());
 
+    // Apply a previously chosen webcam index, if one was selected in the admin.
+    if let Ok(Some(idx)) =
+        snap_core::settings::get(&db, snap_core::settings::keys::CAMERA_INDEX).await
+    {
+        if let Ok(i) = idx.parse::<u32>() {
+            if i > 0 {
+                let _ = camera.use_webcam(i).await;
+            }
+        }
+    }
+
     println!("\n  ▶ SnapStation läuft:  {url}\n    (im Browser öffnen · Strg+C zum Beenden)\n");
 
     // Open the default browser for easy desktop use, unless disabled (e.g. the

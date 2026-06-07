@@ -71,6 +71,7 @@ pub fn router(state: AppState) -> Router {
         )
         .route("/theme", get(branding::get_theme).put(branding::put_theme))
         .route("/branding/logo", post(branding::upload_logo))
+        .route("/branding/kiosk-bg", post(branding::upload_kiosk_bg))
         .route(
             "/comfort",
             get(comfort::get_comfort).post(comfort::set_comfort),
@@ -86,6 +87,7 @@ pub fn router(state: AppState) -> Router {
         .route("/p/{token}/thumb", get(api::thumb_file))
         .route("/bg/{ulid}", get(chroma::background_file))
         .route("/branding/logo", get(branding::logo_file))
+        .route("/branding/kiosk-bg", get(branding::kiosk_bg_file))
         .route("/d/{token}", get(share::download_page))
         .with_state(state)
         .fallback(assets::static_handler)

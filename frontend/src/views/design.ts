@@ -61,6 +61,7 @@ export async function renderDesign(app: HTMLElement): Promise<void> {
             logo_url: t.logo_url,
             title: title.value,
             subtitle: subtitle.value,
+            kiosk_bg_url: t.kiosk_bg_url,
           });
           await applyTheme();
           designMsg.textContent = 'Gespeichert ✓';

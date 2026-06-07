@@ -19,8 +19,13 @@ pub struct WebcamCamera {
 }
 
 impl WebcamCamera {
-    /// Open the default webcam (index 0) at its highest resolution.
+    /// Open the default webcam (index 0).
     pub fn open() -> Result<Self, CameraError> {
+        Self::open_index(0)
+    }
+
+    /// Open a specific webcam by index at its highest resolution.
+    pub fn open_index(index: u32) -> Result<Self, CameraError> {
         #[cfg(target_os = "macos")]
         {
             // Trigger the AVFoundation/TCC permission flow once.
@@ -30,12 +35,30 @@ impl WebcamCamera {
 
         let format =
             RequestedFormat::new::<RgbFormat>(RequestedFormatType::AbsoluteHighestResolution);
-        let mut cam = Camera::new(CameraIndex::Index(0), format)
+        let mut cam = Camera::new(CameraIndex::Index(index), format)
             .map_err(|e| CameraError::Backend(format!("Webcam öffnen: {e}")))?;
         cam.open_stream()
             .map_err(|e| CameraError::Backend(format!("Webcam-Stream: {e}")))?;
         let model = cam.info().human_name();
         Ok(Self { cam, model })
+    }
+}
+
+/// List available webcams as `(index, name)`.
+pub fn list_cameras() -> Vec<(u32, String)> {
+    match nokhwa::query(nokhwa::utils::ApiBackend::Auto) {
+        Ok(list) => list
+            .iter()
+            .enumerate()
+            .map(|(i, info)| {
+                let idx = match info.index() {
+                    CameraIndex::Index(n) => *n,
+                    CameraIndex::String(_) => i as u32,
+                };
+                (idx, info.human_name())
+            })
+            .collect(),
+        Err(_) => Vec::new(),
     }
 }
 

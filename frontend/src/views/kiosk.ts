@@ -7,11 +7,38 @@ import { t, getLang, setLang } from '../i18n';
 export function renderKiosk(app: HTMLElement): void {
   clear(app);
 
+  // Background image (shown when the live preview is off / on-demand).
+  const bgImg = h('img', {
+    class: 'absolute inset-0 w-full h-full object-cover hidden',
+    alt: '',
+  }) as HTMLImageElement;
+
   const preview = h('img', {
     class: 'absolute inset-0 w-full h-full object-cover',
     alt: 'Live-Vorschau',
     src: api.previewStream(),
   }) as HTMLImageElement;
+
+  // Live-preview mode: 'live' (always), 'on_demand' (only while shooting), 'off'.
+  let mode: 'live' | 'on_demand' | 'off' = 'live';
+  const kioskBg = theme().kiosk_bg_url;
+  const setLive = (on: boolean) => {
+    if (on) {
+      if (!preview.src.includes('/preview/stream')) preview.src = api.previewStream();
+      preview.classList.remove('hidden');
+      bgImg.classList.add('hidden');
+    } else {
+      preview.src = '';
+      preview.classList.add('hidden');
+      if (kioskBg) {
+        bgImg.src = kioskBg;
+        bgImg.classList.remove('hidden');
+      } else {
+        bgImg.classList.add('hidden');
+      }
+    }
+  };
+  const applyMode = () => setLive(mode === 'live');
 
   const overlay = h('div', { class: 'absolute inset-0 grid place-items-center pointer-events-none' });
 
@@ -44,28 +71,26 @@ export function renderKiosk(app: HTMLElement): void {
     'a',
     {
       href: '#/admin',
-      class: 'absolute top-4 right-4 text-slate-200/70 hover:text-white text-2xl',
+      class: 'text-slate-200/70 hover:text-white text-2xl leading-none',
       'aria-label': 'Admin',
     },
     '⚙',
   );
 
-  const stage = h(
-    'div',
-    { class: 'kiosk relative w-full h-full bg-black overflow-hidden' },
-    preview,
-    overlay,
-    brand,
-    shutter,
-    gear,
+  const galleryBtn = h(
+    'a',
+    {
+      href: '#/gallery',
+      class: 'text-slate-100/90 hover:text-white text-sm font-medium',
+      'aria-label': t('gallery'),
+    },
+    '🖼 ' + t('gallery'),
   );
-  app.append(stage);
 
-  // Guest-facing language toggle.
   const langToggle = h(
     'button',
     {
-      class: 'absolute top-4 right-16 text-slate-200/70 hover:text-white text-sm font-semibold',
+      class: 'text-slate-200/70 hover:text-white text-sm font-semibold',
       'aria-label': 'Sprache / Language',
     },
     getLang().toUpperCase(),
@@ -74,7 +99,26 @@ export function renderKiosk(app: HTMLElement): void {
     setLang(getLang() === 'de' ? 'en' : 'de');
     renderKiosk(app);
   });
-  stage.append(langToggle);
+
+  const topRight = h(
+    'div',
+    { class: 'absolute top-4 right-4 flex items-center gap-4' },
+    galleryBtn,
+    langToggle,
+    gear,
+  );
+
+  const stage = h(
+    'div',
+    { class: 'kiosk relative w-full h-full bg-black overflow-hidden' },
+    bgImg,
+    preview,
+    overlay,
+    brand,
+    shutter,
+    topRight,
+  );
+  app.append(stage);
 
   let busy = false;
 
@@ -107,6 +151,8 @@ export function renderKiosk(app: HTMLElement): void {
         mirror: c.settings.mirror_preview,
       };
       preview.style.transform = capture.mirror ? 'scaleX(-1)' : '';
+      mode = (c.settings.preview_mode as 'live' | 'on_demand' | 'off') || 'live';
+      applyMode();
     })
     .catch(() => {});
 
@@ -180,12 +226,14 @@ export function renderKiosk(app: HTMLElement): void {
   const backToLive = () => {
     overlay.replaceChildren();
     busy = false;
-    preview.src = api.previewStream();
+    applyMode();
   };
 
   const shoot = async () => {
     if (busy) return;
     busy = true;
+    // On-demand mode: turn the live view on for the countdown.
+    if (mode === 'on_demand') setLive(true);
     try {
       const secs = Math.max(0, Math.min(10, capture.countdown));
       for (let i = secs; i >= 1; i--) {

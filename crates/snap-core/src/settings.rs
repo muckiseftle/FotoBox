@@ -52,6 +52,11 @@ pub mod keys {
     pub const COUNTDOWN_SOUND: &str = "countdown_sound";
     /// Mirror the live preview (selfie view); captured photo stays un-mirrored.
     pub const MIRROR_PREVIEW: &str = "mirror_preview";
+    /// Which webcam index to use when several are present.
+    pub const CAMERA_INDEX: &str = "camera_index";
+    /// Live-preview mode: `live` (always), `on_demand` (only after pressing the
+    /// shutter), or `off` (show the kiosk background image instead).
+    pub const PREVIEW_MODE: &str = "preview_mode";
 }
 
 /// Fetch a raw setting value, if present.

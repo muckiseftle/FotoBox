@@ -23,6 +23,9 @@ pub struct Theme {
     pub title: String,
     #[serde(default)]
     pub subtitle: String,
+    /// Kiosk idle/background image shown when the live preview is off/on-demand.
+    #[serde(default)]
+    pub kiosk_bg_url: String,
 }
 
 fn default_primary() -> String {
@@ -36,6 +39,7 @@ impl Default for Theme {
             logo_url: String::new(),
             title: String::new(),
             subtitle: String::new(),
+            kiosk_bg_url: String::new(),
         }
     }
 }
@@ -97,4 +101,40 @@ pub async fn upload_logo(
 
 pub async fn logo_file(State(st): State<AppState>) -> Result<Response, ApiError> {
     crate::api::serve_image(st.config.data_dir.join("branding/logo.png")).await
+}
+
+pub async fn upload_kiosk_bg(
+    _admin: AdminAuth,
+    State(st): State<AppState>,
+    body: Bytes,
+) -> Result<Json<Value>, ApiError> {
+    let raw = body.to_vec();
+    let jpeg =
+        tokio::task::spawn_blocking(move || -> Result<Vec<u8>, snap_imaging::ImagingError> {
+            let img = snap_imaging::decode(&raw)?;
+            snap_imaging::encode_jpeg(&img, 88)
+        })
+        .await
+        .map_err(|e| ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .map_err(|e| ApiError::bad_request(format!("kein gültiges Bild: {e}")))?;
+
+    let dir = st.config.data_dir.join("branding");
+    tokio::fs::create_dir_all(&dir).await?;
+    tokio::fs::write(dir.join("kiosk-bg.jpg"), &jpeg).await?;
+
+    let mut theme = load_theme(&st).await?;
+    theme.kiosk_bg_url = "/branding/kiosk-bg".to_string();
+    settings::set(
+        &st.db,
+        keys::THEME,
+        &serde_json::to_string(&theme).unwrap_or_default(),
+    )
+    .await?;
+    Ok(Json(
+        json!({ "ok": true, "kiosk_bg_url": theme.kiosk_bg_url }),
+    ))
+}
+
+pub async fn kiosk_bg_file(State(st): State<AppState>) -> Result<Response, ApiError> {
+    crate::api::serve_image(st.config.data_dir.join("branding/kiosk-bg.jpg")).await
 }

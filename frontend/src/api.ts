@@ -95,6 +95,7 @@ export interface Theme {
   logo_url: string;
   title: string;
   subtitle: string;
+  kiosk_bg_url: string;
 }
 
 export interface EmailSettings {
@@ -117,12 +118,16 @@ export interface CameraSettings {
   countdown_seconds: number;
   countdown_sound: boolean;
   mirror_preview: boolean;
+  camera_index: number;
+  /** 'live' | 'on_demand' | 'off' */
+  preview_mode: string;
 }
 
 export interface CameraInfo {
   info: { model: string; port: string; backend: string };
   state: { state: string; message?: string };
   settings: CameraSettings;
+  available: { index: number; name: string }[];
 }
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
@@ -266,6 +271,12 @@ export const api = {
     }),
   uploadLogo: (bytes: Blob) =>
     request<{ ok: boolean; logo_url: string }>('/api/branding/logo', {
+      method: 'POST',
+      headers: { 'Content-Type': bytes.type || 'application/octet-stream' },
+      body: bytes,
+    }),
+  uploadKioskBg: (bytes: Blob) =>
+    request<{ ok: boolean; kiosk_bg_url: string }>('/api/branding/kiosk-bg', {
       method: 'POST',
       headers: { 'Content-Type': bytes.type || 'application/octet-stream' },
       body: bytes,

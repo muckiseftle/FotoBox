@@ -1,6 +1,6 @@
 import { api, type Theme } from './api';
 
-let current: Theme = { primary: '#0ea5e9', logo_url: '', title: '', subtitle: '' };
+let current: Theme = { primary: '#0ea5e9', logo_url: '', title: '', subtitle: '', kiosk_bg_url: '' };
 
 /** The most recently applied theme (for views that show the logo/title). */
 export function theme(): Theme {

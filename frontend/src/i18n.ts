@@ -6,6 +6,7 @@ const dict: Record<Lang, Record<string, string>> = {
   de: {
     gallery: 'Galerie',
     admin: 'Admin',
+    home: 'Start',
     shutter: 'Foto auslösen',
     retake: 'Nochmal',
     toGallery: 'Zur Galerie',
@@ -24,6 +25,7 @@ const dict: Record<Lang, Record<string, string>> = {
   en: {
     gallery: 'Gallery',
     admin: 'Admin',
+    home: 'Home',
     shutter: 'Take photo',
     retake: 'Retake',
     toGallery: 'To gallery',

@@ -16,9 +16,13 @@ use tokio::sync::{mpsc, oneshot, watch};
 /// Target preview pacing (~20 fps). The real camera may deliver fewer.
 const PREVIEW_INTERVAL: Duration = Duration::from_millis(50);
 
+type BackendMaker = Box<dyn FnOnce() -> Result<Box<dyn CameraBackend>, CameraError> + Send>;
+
 enum Command {
     Detect(oneshot::Sender<Result<CameraInfo, CameraError>>),
     Capture(oneshot::Sender<Result<CaptureResult, CameraError>>),
+    /// Replace the backend (constructed on the actor thread) — e.g. switch webcam.
+    Reconfigure(BackendMaker, oneshot::Sender<Result<(), CameraError>>),
     AddViewer,
     RemoveViewer,
     Shutdown,
@@ -58,6 +62,25 @@ impl CameraHandle {
             .await
             .map_err(|_| CameraError::ActorGone)?;
         rx.await.map_err(|_| CameraError::ActorGone)?
+    }
+
+    /// Replace the camera backend at runtime (built on the actor thread).
+    pub async fn reconfigure(&self, maker: BackendMaker) -> Result<(), CameraError> {
+        let (tx, rx) = oneshot::channel();
+        self.cmd_tx
+            .send(Command::Reconfigure(maker, tx))
+            .await
+            .map_err(|_| CameraError::ActorGone)?;
+        rx.await.map_err(|_| CameraError::ActorGone)?
+    }
+
+    /// Switch to a specific webcam by index, live.
+    pub async fn use_webcam(&self, index: u32) -> Result<(), CameraError> {
+        self.reconfigure(Box::new(move || {
+            crate::webcam::WebcamCamera::open_index(index)
+                .map(|c| Box::new(c) as Box<dyn CameraBackend>)
+        }))
+        .await
     }
 
     /// Subscribe to the shared live-view frame stream.
@@ -115,9 +138,9 @@ pub fn spawn(make: Box<dyn FnOnce() -> Box<dyn CameraBackend> + Send>) -> Camera
     std::thread::Builder::new()
         .name("camera-actor".to_string())
         .spawn(move || {
-            let mut backend = make();
+            let backend = make();
             let _ = info_tx.send(backend.info());
-            run(&mut *backend, cmd_rx, preview_tx, state_tx);
+            run(backend, cmd_rx, preview_tx, state_tx, info_tx);
         })
         .expect("failed to spawn camera-actor thread");
 
@@ -130,10 +153,11 @@ pub fn spawn(make: Box<dyn FnOnce() -> Box<dyn CameraBackend> + Send>) -> Camera
 }
 
 fn run(
-    backend: &mut dyn CameraBackend,
+    mut backend: Box<dyn CameraBackend>,
     mut cmd_rx: mpsc::Receiver<Command>,
     preview_tx: watch::Sender<PreviewFrame>,
     state_tx: watch::Sender<CameraState>,
+    info_tx: watch::Sender<CameraInfo>,
 ) {
     let mut viewers: usize = 0;
     let set_state = |s: CameraState| {
@@ -153,7 +177,7 @@ fn run(
             loop {
                 match cmd_rx.try_recv() {
                     Ok(cmd) => {
-                        if handle(cmd, backend, &mut viewers, &set_state) {
+                        if process(cmd, &mut backend, &mut viewers, &set_state, &info_tx) {
                             return;
                         }
                     }
@@ -178,7 +202,7 @@ fn run(
             set_state(CameraState::Idle);
             match cmd_rx.blocking_recv() {
                 Some(cmd) => {
-                    if handle(cmd, backend, &mut viewers, &set_state) {
+                    if process(cmd, &mut backend, &mut viewers, &set_state, &info_tx) {
                         return;
                     }
                 }
@@ -189,11 +213,12 @@ fn run(
 }
 
 /// Handle one command. Returns `true` if the actor should shut down.
-fn handle(
+fn process(
     cmd: Command,
-    backend: &mut dyn CameraBackend,
+    backend: &mut Box<dyn CameraBackend>,
     viewers: &mut usize,
     set_state: &impl Fn(CameraState),
+    info_tx: &watch::Sender<CameraInfo>,
 ) -> bool {
     match cmd {
         Command::Detect(resp) => {
@@ -209,6 +234,20 @@ fn handle(
             }
             let _ = resp.send(result);
         }
+        Command::Reconfigure(maker, resp) => match maker() {
+            Ok(new_backend) => {
+                *backend = new_backend;
+                let _ = info_tx.send(backend.info());
+                set_state(CameraState::Idle);
+                let _ = resp.send(Ok(()));
+            }
+            Err(e) => {
+                set_state(CameraState::Error {
+                    message: e.to_string(),
+                });
+                let _ = resp.send(Err(e));
+            }
+        },
         Command::AddViewer => *viewers += 1,
         Command::RemoveViewer => *viewers = viewers.saturating_sub(1),
         Command::Shutdown => return true,

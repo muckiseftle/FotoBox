@@ -43,7 +43,12 @@ export async function renderGallery(app: HTMLElement): Promise<void> {
   app.append(
     page(
       'gallery',
-      h('h1', { class: 'text-xl font-bold mb-4' }, `${t('gallery')} · ${photos.length} ${t('photos')}`),
+      h(
+        'div',
+        { class: 'flex items-center justify-between gap-3 mb-4' },
+        h('h1', { class: 'text-xl font-bold' }, `${t('gallery')} · ${photos.length} ${t('photos')}`),
+        h('a', { class: cls.button, href: '#/' }, '← ' + t('home')),
+      ),
       grid,
     ),
   );
