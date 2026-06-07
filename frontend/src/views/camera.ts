@@ -1,4 +1,4 @@
-import { api, type CameraInfo, type Theme } from '../api';
+import { api, type CameraInfo } from '../api';
 import { h, clear, cls, adminPage } from '../ui';
 
 function field(label: string, input: HTMLElement, hint?: string): HTMLElement {
@@ -23,9 +23,8 @@ function row(label: string, value: string | Node): HTMLElement {
 export async function renderCamera(app: HTMLElement): Promise<void> {
   clear(app);
   let cam: CameraInfo;
-  let theme: Theme;
   try {
-    [cam, theme] = await Promise.all([api.getCamera(), api.getTheme()]);
+    cam = await api.getCamera();
   } catch (e) {
     app.append(adminPage('camera', h('p', { class: 'text-red-400' }, String(e))));
     return;
@@ -110,29 +109,6 @@ export async function renderCamera(app: HTMLElement): Promise<void> {
     'Speichern',
   );
 
-  // ---- Kiosk background (for preview off / on-demand) ----
-  const bgPreview = h('img', {
-    class: 'h-20 rounded-lg bg-slate-800 ' + (theme.kiosk_bg_url ? '' : 'hidden'),
-    src: theme.kiosk_bg_url ? theme.kiosk_bg_url + '?t=' + Date.now() : '',
-    alt: 'Hintergrund',
-  }) as HTMLImageElement;
-  const bgInput = h('input', { type: 'file', accept: 'image/*', class: 'hidden' }) as HTMLInputElement;
-  const bgMsg = h('span', { class: 'text-sm text-emerald-400 min-h-[1.25rem]' });
-  bgInput.addEventListener('change', async () => {
-    const f = bgInput.files?.[0];
-    if (!f) return;
-    try {
-      const r = await api.uploadKioskBg(f);
-      bgPreview.src = r.kiosk_bg_url + '?t=' + Date.now();
-      bgPreview.classList.remove('hidden');
-      bgMsg.textContent = 'Hochgeladen ✓';
-    } catch (e) {
-      bgMsg.className = 'text-sm text-red-400 min-h-[1.25rem]';
-      bgMsg.textContent = e instanceof Error ? e.message : 'Fehler';
-    }
-    bgInput.value = '';
-  });
-
   app.append(
     adminPage(
       'camera',
@@ -158,11 +134,9 @@ export async function renderCamera(app: HTMLElement): Promise<void> {
         h('div', { class: 'flex items-center gap-3 pt-1' }, saveBtn, saveMsg),
       ),
       h(
-        'div',
-        { class: cls.card + ' space-y-3' },
-        h('h2', { class: 'font-semibold' }, 'Kiosk-Hintergrundbild'),
-        h('p', { class: 'text-sm text-slate-400' }, 'Wird im Kiosk angezeigt, wenn die Live-Vorschau „aus" oder „erst beim Auslösen" ist.'),
-        h('div', { class: 'flex items-center gap-3 flex-wrap' }, bgPreview, h('button', { class: cls.ghost, onclick: () => bgInput.click() }, 'Bild hochladen'), bgInput, bgMsg),
+        'p',
+        { class: 'mt-2 text-xs text-slate-500' },
+        'Das Hintergrundbild für die Vorschaumodi „aus" / „erst beim Auslösen" stellst du unter Design ein.',
       ),
       h(
         'p',

@@ -92,10 +92,18 @@ export interface PrintJobView {
 
 export interface Theme {
   primary: string;
+  background: string;
   logo_url: string;
   title: string;
   subtitle: string;
   kiosk_bg_url: string;
+}
+
+export interface KioskSettings {
+  show_gallery: boolean;
+  show_print: boolean;
+  show_qr: boolean;
+  result_seconds: number;
 }
 
 export interface EmailSettings {
@@ -270,6 +278,15 @@ export const api = {
   getEmailSettings: () => request<EmailSettings>('/api/email/settings'),
   setEmailSettings: (s: Omit<EmailSettings, 'has_password'> & { password?: string }) =>
     request<{ ok: boolean }>('/api/email/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(s),
+    }),
+
+  // Kiosk behaviour
+  getKiosk: () => request<KioskSettings>('/api/kiosk'),
+  setKiosk: (s: KioskSettings) =>
+    request<{ ok: boolean }>('/api/kiosk', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(s),

@@ -75,7 +75,16 @@ export function page(active: 'gallery' | 'admin', ...content: (Node | string)[])
 }
 
 /** Admin section identifiers for the sidebar. */
-export type AdminKey = 'dashboard' | 'camera' | 'chroma' | 'print' | 'design' | 'comfort' | 'setup';
+export type AdminKey =
+  | 'dashboard'
+  | 'camera'
+  | 'kiosk'
+  | 'chroma'
+  | 'print'
+  | 'design'
+  | 'share'
+  | 'comfort'
+  | 'setup';
 
 /** Admin layout with a left sidebar menu (responsive: sidebar on desktop,
  *  horizontal scroll row on mobile). */
@@ -83,9 +92,11 @@ export function adminPage(active: AdminKey, ...content: (Node | string)[]): HTML
   const items: { key: AdminKey; href: string; label: string }[] = [
     { key: 'dashboard', href: '#/admin', label: 'Dashboard' },
     { key: 'camera', href: '#/camera', label: 'Kamera' },
+    { key: 'kiosk', href: '#/kiosk-settings', label: 'Kiosk' },
     { key: 'chroma', href: '#/chroma', label: 'Chroma-Key' },
     { key: 'print', href: '#/print', label: 'Drucken' },
-    { key: 'design', href: '#/design', label: 'Design & Teilen' },
+    { key: 'design', href: '#/design', label: 'Design' },
+    { key: 'share', href: '#/share', label: 'Teilen' },
     { key: 'comfort', href: '#/settings', label: 'Komfort' },
     { key: 'setup', href: '#/setup', label: 'Einrichtung' },
   ];

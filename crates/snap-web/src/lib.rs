@@ -9,6 +9,7 @@ mod camera;
 mod chroma;
 mod comfort;
 mod error;
+mod kiosk;
 mod print;
 mod share;
 mod state;
@@ -41,6 +42,7 @@ pub fn router(state: AppState) -> Router {
         .route("/status", get(api::status))
         .route("/camera", get(camera::get_camera).post(camera::set_camera))
         .route("/camera/detect", post(camera::detect_camera))
+        .route("/kiosk", get(kiosk::get_kiosk).post(kiosk::set_kiosk))
         .route("/photos", get(api::list_photos))
         .route("/capture", post(api::capture))
         .route("/preview/stream", get(stream::preview_stream))

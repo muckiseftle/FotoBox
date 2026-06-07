@@ -1,6 +1,6 @@
-import { api, type EmailSettings, type Theme } from '../api';
+import { api, type Theme } from '../api';
 import { h, clear, cls, adminPage } from '../ui';
-import { applyTheme, setBrandColor } from '../theme';
+import { applyTheme, setBrandColor, setBackgroundColor } from '../theme';
 
 function field(label: string, input: HTMLElement): HTMLElement {
   return h(
@@ -14,20 +14,23 @@ function field(label: string, input: HTMLElement): HTMLElement {
 export async function renderDesign(app: HTMLElement): Promise<void> {
   clear(app);
   let t: Theme;
-  let email: EmailSettings;
   try {
-    [t, email] = await Promise.all([api.getTheme(), api.getEmailSettings()]);
+    t = await api.getTheme();
   } catch (e) {
     app.append(adminPage('design', h('p', { class: 'text-red-400' }, String(e))));
     return;
   }
 
-  // ---- Design ----
+  // ---- Colours ----
   const color = h('input', { type: 'color', value: t.primary, class: 'w-14 h-10 rounded' }) as HTMLInputElement;
   color.addEventListener('input', () => setBrandColor(color.value)); // live preview
+  const bgColor = h('input', { type: 'color', value: t.background, class: 'w-14 h-10 rounded' }) as HTMLInputElement;
+  bgColor.addEventListener('input', () => setBackgroundColor(bgColor.value)); // live preview
+
   const title = h('input', { type: 'text', value: t.title, placeholder: 'Event-Titel', class: cls.input }) as HTMLInputElement;
   const subtitle = h('input', { type: 'text', value: t.subtitle, placeholder: 'Untertitel', class: cls.input }) as HTMLInputElement;
 
+  // ---- Logo ----
   const logoPreview = h('img', {
     class: 'h-12 w-auto rounded bg-slate-800 ' + (t.logo_url ? '' : 'hidden'),
     src: t.logo_url || '',
@@ -58,6 +61,7 @@ export async function renderDesign(app: HTMLElement): Promise<void> {
         try {
           await api.putTheme({
             primary: color.value,
+            background: bgColor.value,
             logo_url: t.logo_url,
             title: title.value,
             subtitle: subtitle.value,
@@ -74,53 +78,40 @@ export async function renderDesign(app: HTMLElement): Promise<void> {
     'Design speichern',
   );
 
-  // ---- E-mail ----
-  const enabled = h('input', { type: 'checkbox', class: 'w-5 h-5 accent-brand' }) as HTMLInputElement;
-  enabled.checked = email.enabled;
-  const host = h('input', { type: 'text', value: email.host, placeholder: 'smtp.example.com', class: cls.input }) as HTMLInputElement;
-  const port = h('input', { type: 'number', value: email.port, min: 1, max: 65535, class: cls.input }) as HTMLInputElement;
-  const user = h('input', { type: 'text', value: email.user, placeholder: 'Benutzername', class: cls.input }) as HTMLInputElement;
-  const from = h('input', { type: 'text', value: email.from, placeholder: 'foto@example.com', class: cls.input }) as HTMLInputElement;
-  const pass = h('input', {
-    type: 'password',
-    placeholder: email.has_password ? '•••••• (gespeichert — leer = beibehalten)' : 'Passwort',
-    class: cls.input,
-  }) as HTMLInputElement;
-  const emailMsg = h('span', { class: 'text-sm text-emerald-400 min-h-[1.25rem]' });
-  const saveEmail = h(
-    'button',
-    {
-      class: cls.button,
-      onclick: async () => {
-        try {
-          await api.setEmailSettings({
-            enabled: enabled.checked,
-            host: host.value,
-            port: Number(port.value) || 587,
-            user: user.value,
-            from: from.value,
-            password: pass.value || undefined,
-          });
-          emailMsg.textContent = 'Gespeichert ✓';
-          pass.value = '';
-          setTimeout(() => (emailMsg.textContent = ''), 2000);
-        } catch (e) {
-          emailMsg.textContent = e instanceof Error ? e.message : 'Fehler';
-        }
-      },
-    },
-    'E-Mail-Einstellungen speichern',
-  );
+  // ---- Kiosk background image (preview off / on-demand) ----
+  const bgPreview = h('img', {
+    class: 'h-20 rounded-lg bg-slate-800 ' + (t.kiosk_bg_url ? '' : 'hidden'),
+    src: t.kiosk_bg_url ? t.kiosk_bg_url + '?t=' + Date.now() : '',
+    alt: 'Hintergrund',
+  }) as HTMLImageElement;
+  const bgInput = h('input', { type: 'file', accept: 'image/*', class: 'hidden' }) as HTMLInputElement;
+  const bgMsg = h('span', { class: 'text-sm text-emerald-400 min-h-[1.25rem]' });
+  bgInput.addEventListener('change', async () => {
+    const f = bgInput.files?.[0];
+    if (!f) return;
+    try {
+      const r = await api.uploadKioskBg(f);
+      t.kiosk_bg_url = r.kiosk_bg_url;
+      bgPreview.src = r.kiosk_bg_url + '?t=' + Date.now();
+      bgPreview.classList.remove('hidden');
+      bgMsg.textContent = 'Hochgeladen ✓';
+    } catch (e) {
+      bgMsg.className = 'text-sm text-red-400 min-h-[1.25rem]';
+      bgMsg.textContent = e instanceof Error ? e.message : 'Fehler';
+    }
+    bgInput.value = '';
+  });
 
   app.append(
     adminPage(
       'design',
-      h('h1', { class: 'text-xl font-bold mb-4' }, 'Design & Teilen'),
+      h('h1', { class: 'text-xl font-bold mb-4' }, 'Design'),
       h(
         'div',
         { class: cls.card + ' mb-6 space-y-3' },
-        h('h2', { class: 'font-semibold' }, 'Design'),
-        h('label', { class: 'flex items-center gap-3' }, h('span', { class: 'text-sm text-slate-300' }, 'Primärfarbe'), color),
+        h('h2', { class: 'font-semibold' }, 'Farben & Texte'),
+        h('label', { class: 'flex items-center gap-3' }, h('span', { class: 'text-sm text-slate-300' }, 'Akzentfarbe'), color),
+        h('label', { class: 'flex items-center gap-3' }, h('span', { class: 'text-sm text-slate-300' }, 'Hintergrundfarbe'), bgColor),
         field('Event-Titel', title),
         field('Untertitel', subtitle),
         h(
@@ -135,14 +126,16 @@ export async function renderDesign(app: HTMLElement): Promise<void> {
       h(
         'div',
         { class: cls.card + ' space-y-3' },
-        h('h2', { class: 'font-semibold' }, 'E-Mail-Versand (SMTP)'),
-        h('label', { class: 'flex items-center gap-3' }, enabled, 'E-Mail-Versand aktivieren'),
-        field('SMTP-Server', host),
-        field('Port', port),
-        field('Benutzer', user),
-        field('Absender (From)', from),
-        field('Passwort', pass),
-        h('div', { class: 'flex items-center gap-3' }, saveEmail, emailMsg),
+        h('h2', { class: 'font-semibold' }, 'Kiosk-Hintergrundbild'),
+        h('p', { class: 'text-sm text-slate-400' }, 'Wird im Kiosk angezeigt, wenn die Live-Vorschau „aus" oder „erst beim Auslösen" ist (Vorschaumodus unter Kamera).'),
+        h(
+          'div',
+          { class: 'flex items-center gap-3 flex-wrap' },
+          bgPreview,
+          h('button', { class: cls.ghost, onclick: () => bgInput.click() }, 'Bild hochladen'),
+          bgInput,
+          bgMsg,
+        ),
       ),
       h('a', { href: '#/admin', class: 'inline-block mt-6 ' + cls.ghost }, 'Zurück zum Admin'),
     ),

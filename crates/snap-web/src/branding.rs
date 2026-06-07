@@ -17,6 +17,9 @@ use snap_core::settings::{self, keys};
 pub struct Theme {
     #[serde(default = "default_primary")]
     pub primary: String,
+    /// App background colour.
+    #[serde(default = "default_background")]
+    pub background: String,
     #[serde(default)]
     pub logo_url: String,
     #[serde(default)]
@@ -31,11 +34,15 @@ pub struct Theme {
 fn default_primary() -> String {
     "#0ea5e9".to_string()
 }
+fn default_background() -> String {
+    "#0b0f17".to_string()
+}
 
 impl Default for Theme {
     fn default() -> Self {
         Self {
             primary: default_primary(),
+            background: default_background(),
             logo_url: String::new(),
             title: String::new(),
             subtitle: String::new(),

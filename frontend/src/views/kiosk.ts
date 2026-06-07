@@ -131,6 +131,17 @@ export function renderKiosk(app: HTMLElement): void {
   app.append(stage);
 
   let busy = false;
+  let resultTimer: number | undefined;
+
+  // Kiosk behaviour (which controls to show, auto-return). Loaded from the admin.
+  let kcfg = { show_gallery: true, show_print: true, show_qr: true, result_seconds: 0 };
+  api
+    .getKiosk()
+    .then((k) => {
+      kcfg = k;
+      galleryBtn.classList.toggle('hidden', !k.show_gallery);
+    })
+    .catch(() => {});
 
   // Capture settings (countdown length, beep, selfie mirror) from the admin.
   let capture = { countdown: 3, sound: true, mirror: false };
@@ -213,35 +224,47 @@ export function renderKiosk(app: HTMLElement): void {
           h(
             'div',
             { class: 'flex gap-3' },
-            printBtn,
+            kcfg.show_print ? printBtn : '',
             h('button', { class: cls.ghost, onclick: () => backToLive() }, t('retake')),
-            h('a', { class: cls.ghost, href: '#/gallery' }, t('toGallery')),
+            kcfg.show_gallery ? h('a', { class: cls.ghost, href: '#/gallery' }, t('toGallery')) : '',
           ),
           printStatus,
-          h(
-            'div',
-            { class: 'flex items-center gap-3 text-slate-300 text-sm' },
-            h('img', {
-              class: 'w-24 h-24 rounded-lg bg-white p-1',
-              src: api.qrUrl(photo.token),
-              alt: 'QR-Code',
-            }),
-            h('span', {}, t('scanHint')),
-          ),
+          kcfg.show_qr
+            ? h(
+                'div',
+                { class: 'flex items-center gap-3 text-slate-300 text-sm' },
+                h('img', {
+                  class: 'w-24 h-24 rounded-lg bg-white p-1',
+                  src: api.qrUrl(photo.token),
+                  alt: 'QR-Code',
+                }),
+                h('span', {}, t('scanHint')),
+              )
+            : '',
         ),
       ),
     );
+
+    // Auto-return to the live view after the configured delay (0 = manual).
+    if (kcfg.result_seconds > 0) {
+      clearTimeout(resultTimer);
+      resultTimer = window.setTimeout(() => backToLive(), kcfg.result_seconds * 1000);
+    }
   };
 
   const backToLive = () => {
+    clearTimeout(resultTimer);
     overlay.replaceChildren();
     busy = false;
+    bottomBar.classList.remove('hidden'); // restore shutter/gallery controls
     applyMode();
   };
 
   const shoot = async () => {
     if (busy) return;
     busy = true;
+    // Hide the shutter/gallery bar so it never overlaps the countdown/result QR.
+    bottomBar.classList.add('hidden');
     // On-demand mode: turn the live view on for the countdown.
     if (mode === 'on_demand') setLive(true);
     try {
@@ -357,6 +380,7 @@ export function renderKiosk(app: HTMLElement): void {
     () => {
       window.removeEventListener('keydown', onKey);
       clearTimeout(idleTimer);
+      clearTimeout(resultTimer);
       clearInterval(slideTimer);
     },
     { once: true },

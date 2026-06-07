@@ -57,6 +57,13 @@ pub mod keys {
     /// Live-preview mode: `live` (always), `on_demand` (only after pressing the
     /// shutter), or `off` (show the kiosk background image instead).
     pub const PREVIEW_MODE: &str = "preview_mode";
+
+    // Kiosk (guest screen) behaviour.
+    pub const KIOSK_SHOW_GALLERY: &str = "kiosk_show_gallery";
+    pub const KIOSK_SHOW_PRINT: &str = "kiosk_show_print";
+    pub const KIOSK_SHOW_QR: &str = "kiosk_show_qr";
+    /// Auto-return to the live view after a capture, in seconds (0 = manual).
+    pub const KIOSK_RESULT_SECONDS: &str = "kiosk_result_seconds";
 }
 
 /// Fetch a raw setting value, if present.
