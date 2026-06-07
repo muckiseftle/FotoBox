@@ -29,3 +29,8 @@ Cargo.lock.orig
 
 # Local preview/test data
 preview-data/
+
+# Icon generator's local npm install (the generated icon.* files ARE committed)
+/branding/node_modules
+/branding/package.json
+/branding/package-lock.json

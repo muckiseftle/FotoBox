@@ -14,7 +14,8 @@ export function h<K extends keyof HTMLElementTagNameMap>(
   for (const [key, value] of Object.entries(attrs)) {
     if (value == null || value === false) continue;
     if (key === 'class') el.className = String(value);
-    else if (key === 'html') el.innerHTML = String(value);
+    // NOTE: deliberately no `innerHTML` sink here — all text goes through
+    // `textContent`/child nodes to keep the DOM builder XSS-safe.
     else if (key.startsWith('on') && typeof value === 'function') {
       el.addEventListener(key.slice(2).toLowerCase(), value as EventListener);
     } else if (value === true) el.setAttribute(key, '');

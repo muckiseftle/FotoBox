@@ -22,7 +22,8 @@ export default defineConfig({
         start_url: '/',
         icons: [
           { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
-          { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'maskable' },
+          { src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
         ],
       },
       workbox: {
@@ -30,12 +31,15 @@ export default defineConfig({
         navigateFallbackDenylist: [/^\/api/, /^\/p\//],
         runtimeCaching: [
           {
-            // Cache already-viewed photos so the gallery works offline.
+            // Photos carry a private share token. Prefer the network and keep
+            // only a small, short-lived cache so deleted/revoked photos do not
+            // linger on a shared kiosk device (privacy).
             urlPattern: ({ url }) => url.pathname.startsWith('/p/'),
-            handler: 'CacheFirst',
+            handler: 'NetworkFirst',
             options: {
               cacheName: 'snap-photos',
-              expiration: { maxEntries: 300, maxAgeSeconds: 60 * 60 * 24 * 7 },
+              networkTimeoutSeconds: 3,
+              expiration: { maxEntries: 40, maxAgeSeconds: 60 * 30 },
             },
           },
         ],

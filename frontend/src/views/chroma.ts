@@ -107,6 +107,9 @@ export async function renderChroma(app: HTMLElement): Promise<void> {
       stopped = true;
       clearInterval(timer);
       if (lastUrl) URL.revokeObjectURL(lastUrl);
+      // Close the open MJPEG stream so the connection isn't held after leaving.
+      live.src = '';
+      result.src = '';
     },
     { once: true },
   );

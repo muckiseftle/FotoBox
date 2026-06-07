@@ -139,6 +139,12 @@ export interface CameraInfo {
 }
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
+  // CSRF defense: the backend requires this custom header on every
+  // state-changing admin request (a cross-site request cannot set it).
+  const method = (init?.method ?? 'GET').toUpperCase();
+  if (method !== 'GET' && method !== 'HEAD') {
+    init = { ...init, headers: { ...(init?.headers ?? {}), 'X-Requested-With': 'SnapStation' } };
+  }
   const res = await fetch(url, init);
   if (!res.ok) {
     let message = res.statusText;

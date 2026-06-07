@@ -21,13 +21,42 @@ pub enum ImagingError {
 
 pub type Result<T> = std::result::Result<T, ImagingError>;
 
+/// Upper bound on the dimensions of a decoded image, guarding against
+/// decompression bombs (a tiny file that expands to gigabytes of pixels).
+/// 64 MP comfortably covers any real DSLR/webcam frame while capping a single
+/// decode to roughly 256 MB of RGBA.
+const MAX_IMAGE_PIXELS: u64 = 64 * 1024 * 1024;
+const MAX_IMAGE_SIDE: u32 = 16_384;
+
 /// Decode image bytes (format auto-detected) into a [`DynamicImage`].
+///
+/// Dimension/allocation limits are enforced so a maliciously crafted upload
+/// cannot exhaust memory (see [`MAX_IMAGE_PIXELS`]).
 pub fn decode(bytes: &[u8]) -> Result<DynamicImage> {
-    image::ImageReader::new(Cursor::new(bytes))
+    let mut reader = image::ImageReader::new(Cursor::new(bytes))
         .with_guessed_format()
-        .map_err(|e| ImagingError::Decode(e.to_string()))?
+        .map_err(|e| ImagingError::Decode(e.to_string()))?;
+
+    let mut limits = image::Limits::default();
+    limits.max_image_width = Some(MAX_IMAGE_SIDE);
+    limits.max_image_height = Some(MAX_IMAGE_SIDE);
+    // Cap the decoder's intermediate allocations (~256 MB for 64 MP RGBA).
+    limits.max_alloc = Some(MAX_IMAGE_PIXELS * 4);
+    reader.limits(limits);
+
+    let img = reader
         .decode()
-        .map_err(|e| ImagingError::Decode(e.to_string()))
+        .map_err(|e| ImagingError::Decode(e.to_string()))?;
+
+    if u64::from(img.width()) * u64::from(img.height()) > MAX_IMAGE_PIXELS {
+        return Err(ImagingError::Decode(format!(
+            "Bild zu groß ({}×{} Pixel, Maximum {} MP)",
+            img.width(),
+            img.height(),
+            MAX_IMAGE_PIXELS / (1024 * 1024)
+        )));
+    }
+    Ok(img)
 }
 
 /// Encode an image as JPEG at the given quality (0–100).

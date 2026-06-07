@@ -18,14 +18,44 @@ mod update;
 
 pub use state::AppState;
 
+use axum::extract::Request;
+use axum::http::HeaderValue;
+use axum::middleware::Next;
+use axum::response::Response;
 use axum::routing::{get, post};
 use axum::Router;
 use snap_camera::CameraHandle;
 use snap_core::{Config, Db};
 use snap_print::PrintService;
+use std::net::SocketAddr;
 use std::sync::Arc;
 use tower_http::compression::CompressionLayer;
 use tower_http::trace::TraceLayer;
+
+/// Add hardening headers to every response. No `Strict-Transport-Security`
+/// (the booth runs over plain HTTP on the LAN). The CSP keeps `'unsafe-inline'`
+/// because the share/download page renders a small inline script; all app DOM
+/// is built without `innerHTML`, so the residual XSS surface is minimal.
+async fn security_headers(req: Request, next: Next) -> Response {
+    let mut res = next.run(req).await;
+    let h = res.headers_mut();
+    h.insert("X-Content-Type-Options", HeaderValue::from_static("nosniff"));
+    h.insert("X-Frame-Options", HeaderValue::from_static("DENY"));
+    h.insert("Referrer-Policy", HeaderValue::from_static("no-referrer"));
+    h.insert(
+        "Permissions-Policy",
+        HeaderValue::from_static("camera=(), microphone=(), geolocation=()"),
+    );
+    h.insert(
+        "Content-Security-Policy",
+        HeaderValue::from_static(
+            "default-src 'self'; img-src 'self' data: blob:; \
+             style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; \
+             connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'",
+        ),
+    );
+    res
+}
 
 /// Returns the running SnapStation version (re-exported from `snap-core`).
 pub fn version() -> &'static str {
@@ -96,6 +126,7 @@ pub fn router(state: AppState) -> Router {
         .route("/d/{token}", get(share::download_page))
         .with_state(state)
         .fallback(assets::static_handler)
+        .layer(axum::middleware::from_fn(security_headers))
         .layer(CompressionLayer::new())
         .layer(TraceLayer::new_for_http())
 }
@@ -113,7 +144,7 @@ pub async fn serve(
         camera,
         printer,
         config,
-        sessions: std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashSet::new())),
+        sessions: std::sync::Arc::new(std::sync::Mutex::new(state::SessionStore::default())),
     };
 
     // Background retry of any queued e-mails.
@@ -122,5 +153,11 @@ pub async fn serve(
     let app = router(state);
     let listener = tokio::net::TcpListener::bind(bind).await?;
     tracing::info!("SnapStation listening on http://{bind}");
-    axum::serve(listener, app).await
+    // `into_make_service_with_connect_info` exposes the peer address to handlers
+    // (needed by the login brute-force limiter via `ConnectInfo<SocketAddr>`).
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .await
 }

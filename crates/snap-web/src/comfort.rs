@@ -117,6 +117,13 @@ pub async fn backup(
     State(st): State<AppState>,
     Json(req): Json<BackupReq>,
 ) -> Result<Json<Value>, ApiError> {
+    // Confine backups to a detected removable target so a stray/compromised
+    // admin request cannot scatter files into arbitrary system directories.
+    if !detect_targets().iter().any(|t| t == &req.path) {
+        return Err(ApiError::bad_request(
+            "Ungültiges Ziel — bitte einen erkannten Datenträger wählen",
+        ));
+    }
     let base = std::path::PathBuf::from(&req.path);
     if !base.is_dir() {
         return Err(ApiError::bad_request("Zielverzeichnis existiert nicht"));

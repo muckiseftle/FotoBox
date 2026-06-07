@@ -3,7 +3,7 @@
 ; Produces a normal installer with Start-menu/desktop shortcuts and an uninstaller.
 
 #define MyAppName "SnapStation"
-#define MyAppVersion "0.5.0"
+#define MyAppVersion "0.5.1"
 
 [Setup]
 AppName={#MyAppName}
@@ -21,6 +21,9 @@ Compression=lzma2
 SolidCompression=yes
 ArchitecturesInstallIn64BitMode=x64compatible
 WizardStyle=modern
+; Installer + uninstaller branding.
+SetupIconFile=..\..\branding\icon.ico
+UninstallDisplayIcon={app}\SnapStation.exe
 
 [Languages]
 Name: "german"; MessagesFile: "compiler:Languages\German.isl"

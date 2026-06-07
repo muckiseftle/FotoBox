@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=SnapStation
+Comment=Event-Foto-Station
+Exec=snapstation
+Icon=snapstation
+Terminal=false
+Categories=Graphics;Photography;
