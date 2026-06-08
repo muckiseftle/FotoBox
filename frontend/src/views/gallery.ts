@@ -1,4 +1,4 @@
-import { api, type Photo, type KioskSettings } from '../api';
+import { api, type Photo, type KioskSettings, setPublicHost } from '../api';
 import { h, clear, cls, page } from '../ui';
 import { t } from '../i18n';
 
@@ -8,6 +8,10 @@ export async function renderGallery(app: HTMLElement): Promise<void> {
   let kcfg: KioskSettings | null = null;
   try {
     [photos, kcfg] = await Promise.all([api.photos(120, 0), api.getKiosk().catch(() => null)]);
+    await api
+      .getNetwork()
+      .then((n) => setPublicHost(n.selected))
+      .catch(() => {});
   } catch (e) {
     app.append(
       page('gallery', h('p', { class: 'text-red-400' }, e instanceof Error ? e.message : 'Fehler')),

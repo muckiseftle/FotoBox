@@ -1,4 +1,4 @@
-import { api, type Photo, COLLAGE_SHOTS } from '../api';
+import { api, type Photo, COLLAGE_SHOTS, setPublicHost } from '../api';
 import { h, clear, cls, sleep } from '../ui';
 import { theme } from '../theme';
 import { t, getLang, setLang } from '../i18n';
@@ -164,6 +164,12 @@ export function renderKiosk(app: HTMLElement): void {
       kcfg = k;
       galleryBtn.classList.toggle('hidden', !k.show_gallery);
     })
+    .catch(() => {});
+
+  // Which host the QR/download links should use (selected LAN IP).
+  api
+    .getNetwork()
+    .then((n) => setPublicHost(n.selected))
     .catch(() => {});
 
   // Collage capture (multi-shot). Revealed when enabled in the admin.

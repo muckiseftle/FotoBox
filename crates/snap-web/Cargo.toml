@@ -30,6 +30,9 @@ argon2 = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 
+# Enumerate the device's network interfaces (for QR-code address selection)
+local-ip-address = "0.6"
+
 # In-app self-update from GitHub releases
 self_update = { version = "0.42", default-features = false, features = [
     "rustls",

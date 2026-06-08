@@ -11,6 +11,7 @@ mod collage;
 mod comfort;
 mod error;
 mod kiosk;
+mod network;
 mod print;
 mod share;
 mod state;
@@ -74,6 +75,10 @@ pub fn router(state: AppState) -> Router {
         .route("/camera", get(camera::get_camera).post(camera::set_camera))
         .route("/camera/detect", post(camera::detect_camera))
         .route("/kiosk", get(kiosk::get_kiosk).post(kiosk::set_kiosk))
+        .route(
+            "/network",
+            get(network::get_network).post(network::set_network),
+        )
         .route(
             "/collage",
             get(collage::get_collage).post(collage::set_collage),

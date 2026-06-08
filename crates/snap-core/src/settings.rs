@@ -72,6 +72,8 @@ pub mod keys {
     pub const ALLOW_DELETE_AFTER_CAPTURE: &str = "allow_delete_after_capture";
     /// Auto-return from the gallery to the kiosk after N idle seconds (0 = off).
     pub const GALLERY_IDLE_SECONDS: &str = "gallery_idle_seconds";
+    /// Host/IP used to build QR/download links (empty = use the kiosk's own host).
+    pub const PUBLIC_HOST: &str = "public_host";
 
     // Collage / multi-shot.
     /// Allow guests to take a multi-shot collage.

@@ -159,6 +159,25 @@ export interface CameraInfo {
   available: { index: number; name: string }[];
 }
 
+export interface NetworkInfo {
+  ips: string[];
+  selected: string;
+}
+
+// Configured public host for QR/download links (empty = use the kiosk's host).
+let publicHost = '';
+export function setPublicHost(host: string): void {
+  publicHost = host || '';
+}
+/** Base origin used in QR/download links — the chosen LAN IP if set. */
+function publicBase(): string {
+  if (publicHost) {
+    const port = location.port ? `:${location.port}` : '';
+    return `${location.protocol}//${publicHost}${port}`;
+  }
+  return location.origin;
+}
+
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   // CSRF defense: the backend requires this custom header on every
   // state-changing admin request (a cross-site request cannot set it).
@@ -311,8 +330,15 @@ export const api = {
     }),
 
   // Sharing
-  qrUrl: (token: string) => `/api/qr?data=${encodeURIComponent(location.origin + '/d/' + token)}`,
-  downloadPageUrl: (token: string) => `${location.origin}/d/${token}`,
+  qrUrl: (token: string) => `/api/qr?data=${encodeURIComponent(publicBase() + '/d/' + token)}`,
+  downloadPageUrl: (token: string) => `${publicBase()}/d/${token}`,
+  getNetwork: () => request<NetworkInfo>('/api/network'),
+  setNetwork: (host: string) =>
+    request<{ ok: boolean }>('/api/network', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ host }),
+    }),
   shareEmail: (token: string, to: string) =>
     request<{ ok: boolean }>('/api/share/email', {
       method: 'POST',

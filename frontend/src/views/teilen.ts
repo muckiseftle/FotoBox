@@ -1,4 +1,4 @@
-import { api, type EmailSettings } from '../api';
+import { api, type EmailSettings, type NetworkInfo } from '../api';
 import { h, clear, cls, adminPage } from '../ui';
 
 function field(label: string, input: HTMLElement): HTMLElement {
@@ -13,12 +13,41 @@ function field(label: string, input: HTMLElement): HTMLElement {
 export async function renderShare(app: HTMLElement): Promise<void> {
   clear(app);
   let email: EmailSettings;
+  let net: NetworkInfo;
   try {
-    email = await api.getEmailSettings();
+    [email, net] = await Promise.all([api.getEmailSettings(), api.getNetwork()]);
   } catch (e) {
     app.append(adminPage('share', h('p', { class: 'text-red-400' }, String(e))));
     return;
   }
+
+  // ---- QR address (which IP the QR / download links point to) ----
+  const ipSel = h(
+    'select',
+    { class: cls.input },
+    h('option', { value: '' }, 'Automatisch (Adresse des Kiosk-Geräts)'),
+    ...net.ips.map((ip) => h('option', { value: ip }, ip)),
+  ) as HTMLSelectElement;
+  ipSel.value = net.selected || '';
+  const netMsg = h('span', { class: 'text-sm text-emerald-400 min-h-[1.25rem]' });
+  const saveNet = h(
+    'button',
+    {
+      class: cls.button,
+      onclick: async () => {
+        try {
+          await api.setNetwork(ipSel.value);
+          netMsg.className = 'text-sm text-emerald-400 min-h-[1.25rem]';
+          netMsg.textContent = 'Gespeichert ✓';
+          setTimeout(() => (netMsg.textContent = ''), 2000);
+        } catch (e) {
+          netMsg.className = 'text-sm text-red-400 min-h-[1.25rem]';
+          netMsg.textContent = e instanceof Error ? e.message : 'Fehler';
+        }
+      },
+    },
+    'Speichern',
+  );
 
   const enabled = h('input', { type: 'checkbox', class: 'w-5 h-5 accent-brand' }) as HTMLInputElement;
   enabled.checked = email.enabled;
@@ -63,6 +92,26 @@ export async function renderShare(app: HTMLElement): Promise<void> {
     adminPage(
       'share',
       h('h1', { class: 'text-xl font-bold mb-4' }, 'Teilen'),
+      h(
+        'div',
+        { class: cls.card + ' mb-6 space-y-3' },
+        h('h2', { class: 'font-semibold' }, 'QR-Code-Adresse'),
+        h(
+          'p',
+          { class: 'text-sm text-slate-400' },
+          'Welche Geräte-Adresse der QR-Code und die Download-Links verwenden. Wähle die WLAN/LAN-Adresse, damit Handys den Link erreichen.',
+        ),
+        h(
+          'label',
+          { class: 'block' },
+          h('span', { class: 'block text-sm text-slate-300 mb-1' }, 'Adresse'),
+          ipSel,
+        ),
+        net.ips.length === 0
+          ? h('p', { class: 'text-xs text-amber-400' }, 'Keine Netzwerk-Adresse erkannt.')
+          : '',
+        h('div', { class: 'flex items-center gap-3' }, saveNet, netMsg),
+      ),
       h(
         'div',
         { class: cls.card + ' space-y-3' },
