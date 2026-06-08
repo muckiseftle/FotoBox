@@ -1,4 +1,4 @@
-import { api, type CameraInfo } from '../api';
+import { api, type CameraInfo, type CollageSettings } from '../api';
 import { h, clear, cls, adminPage } from '../ui';
 
 function field(label: string, input: HTMLElement, hint?: string): HTMLElement {
@@ -23,8 +23,9 @@ function row(label: string, value: string | Node): HTMLElement {
 export async function renderCamera(app: HTMLElement): Promise<void> {
   clear(app);
   let cam: CameraInfo;
+  let collage: CollageSettings;
   try {
-    cam = await api.getCamera();
+    [cam, collage] = await Promise.all([api.getCamera(), api.getCollage()]);
   } catch (e) {
     app.append(adminPage('camera', h('p', { class: 'text-red-400' }, String(e))));
     return;
@@ -109,6 +110,46 @@ export async function renderCamera(app: HTMLElement): Promise<void> {
     'Speichern',
   );
 
+  // ---- Collage / multi-shot ----
+  const colEnabled = h('input', { type: 'checkbox', class: 'w-5 h-5 accent-brand' }) as HTMLInputElement;
+  colEnabled.checked = collage.enabled;
+  const colLayout = h(
+    'select',
+    { class: cls.input },
+    h('option', { value: 'grid2x2' }, '2×2 Raster (4 Bilder)'),
+    h('option', { value: 'duo1x2' }, '2 Bilder untereinander'),
+    h('option', { value: 'strip1x3' }, '3er-Streifen (3 Bilder)'),
+    h('option', { value: 'strip1x4' }, '4er-Streifen (4 Bilder)'),
+    h('option', { value: 'grid2x3' }, '2×3 Raster (6 Bilder)'),
+  ) as HTMLSelectElement;
+  colLayout.value = collage.layout || 'grid2x2';
+  const colCountdown = h('input', { type: 'number', min: 0, max: 10, value: collage.countdown_seconds, class: cls.input }) as HTMLInputElement;
+  const colReview = h('input', { type: 'number', min: 0, max: 10, value: collage.review_seconds, class: cls.input }) as HTMLInputElement;
+  const colMsg = h('span', { class: 'text-sm text-emerald-400 min-h-[1.25rem]' });
+  const colSave = h(
+    'button',
+    {
+      class: cls.button,
+      onclick: async () => {
+        try {
+          await api.setCollage({
+            enabled: colEnabled.checked,
+            layout: colLayout.value,
+            countdown_seconds: Number(colCountdown.value) || 0,
+            review_seconds: Number(colReview.value) || 0,
+          });
+          colMsg.className = 'text-sm text-emerald-400 min-h-[1.25rem]';
+          colMsg.textContent = 'Gespeichert ✓';
+          setTimeout(() => (colMsg.textContent = ''), 2000);
+        } catch (e) {
+          colMsg.className = 'text-sm text-red-400 min-h-[1.25rem]';
+          colMsg.textContent = e instanceof Error ? e.message : 'Fehler';
+        }
+      },
+    },
+    'Speichern',
+  );
+
   app.append(
     adminPage(
       'camera',
@@ -132,6 +173,16 @@ export async function renderCamera(app: HTMLElement): Promise<void> {
         h('label', { class: 'flex items-center gap-3' }, sound, 'Countdown-Ton'),
         h('label', { class: 'flex items-center gap-3' }, mirror, 'Vorschau spiegeln (Selfie-Ansicht)'),
         h('div', { class: 'flex items-center gap-3 pt-1' }, saveBtn, saveMsg),
+      ),
+      h(
+        'div',
+        { class: cls.card + ' mb-6 space-y-3' },
+        h('h2', { class: 'font-semibold' }, 'Collage / Mehrfach-Aufnahme'),
+        h('label', { class: 'flex items-center gap-3' }, colEnabled, 'Collage-Aufnahme erlauben'),
+        field('Layout', colLayout, 'Bestimmt Anordnung und Anzahl der Aufnahmen.'),
+        field('Countdown vor jedem Bild (Sekunden)', colCountdown),
+        field('Anzeige je Bild zwischen den Aufnahmen (Sekunden)', colReview),
+        h('div', { class: 'flex items-center gap-3 pt-1' }, colSave, colMsg),
       ),
       h(
         'p',

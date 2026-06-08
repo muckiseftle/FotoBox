@@ -85,6 +85,17 @@ impl Photo {
             .await?;
         Ok(n)
     }
+
+    /// Delete a photo row by token, returning the removed photo (so the caller
+    /// can unlink its files). Errors with `NotFound` if the token is unknown.
+    pub async fn delete_by_token(db: &Db, token: &str) -> Result<Photo> {
+        let photo = Self::by_token(db, token).await?;
+        sqlx::query("DELETE FROM photos WHERE id = ?")
+            .bind(photo.id)
+            .execute(db)
+            .await?;
+        Ok(photo)
+    }
 }
 
 /// A background image available for chroma-key compositing.

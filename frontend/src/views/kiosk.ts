@@ -1,4 +1,4 @@
-import { api, type Photo } from '../api';
+import { api, type Photo, COLLAGE_SHOTS } from '../api';
 import { h, clear, cls, sleep } from '../ui';
 import { theme } from '../theme';
 import { t, getLang, setLang } from '../i18n';
@@ -82,11 +82,25 @@ export function renderKiosk(app: HTMLElement): void {
     {
       href: '#/gallery',
       class:
-        'bg-black/40 hover:bg-black/60 text-white text-sm font-medium px-4 py-3 ' +
+        'flex items-center gap-2 bg-black/40 hover:bg-black/60 text-white text-sm font-medium px-4 py-3 ' +
         'rounded-xl backdrop-blur whitespace-nowrap shrink-0',
       'aria-label': t('gallery'),
     },
-    '🖼 ' + t('gallery'),
+    h('img', { src: '/gallery.svg', alt: '', class: 'w-5 h-5' }),
+    h('span', {}, t('gallery')),
+  );
+
+  // Optional collage button (revealed when collage capture is enabled).
+  const collageBtn = h(
+    'button',
+    {
+      class:
+        'hidden flex items-center gap-2 bg-black/40 hover:bg-black/60 text-white text-sm font-medium px-4 py-3 ' +
+        'rounded-xl backdrop-blur whitespace-nowrap shrink-0',
+      'aria-label': 'Collage',
+    },
+    h('span', { class: 'text-base leading-none' }, '▦'),
+    h('span', {}, 'Collage'),
   );
 
   const langToggle = h(
@@ -109,13 +123,13 @@ export function renderKiosk(app: HTMLElement): void {
     gear,
   );
 
-  // Bottom bar: gallery button beside the (centred) shutter.
+  // Bottom bar: gallery + collage buttons flank the (centred) shutter.
   const bottomBar = h(
     'div',
     { class: 'absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-6' },
     galleryBtn,
     shutter,
-    h('div', { class: 'w-28 shrink-0' }), // spacer keeps the shutter centred
+    collageBtn,
   );
 
   const stage = h(
@@ -134,12 +148,31 @@ export function renderKiosk(app: HTMLElement): void {
   let resultTimer: number | undefined;
 
   // Kiosk behaviour (which controls to show, auto-return). Loaded from the admin.
-  let kcfg = { show_gallery: true, show_print: true, show_qr: true, result_seconds: 0 };
+  let kcfg = {
+    show_gallery: true,
+    show_print: true,
+    show_qr: true,
+    result_seconds: 0,
+    qr_logo: false,
+    allow_delete_gallery: false,
+    allow_delete_after_capture: false,
+    gallery_idle_seconds: 0,
+  };
   api
     .getKiosk()
     .then((k) => {
       kcfg = k;
       galleryBtn.classList.toggle('hidden', !k.show_gallery);
+    })
+    .catch(() => {});
+
+  // Collage capture (multi-shot). Revealed when enabled in the admin.
+  let collageCfg = { enabled: false, layout: 'grid2x2', countdown_seconds: 3, review_seconds: 2 };
+  api
+    .getCollage()
+    .then((c) => {
+      collageCfg = c;
+      collageBtn.classList.toggle('hidden', !c.enabled);
     })
     .catch(() => {});
 
@@ -177,12 +210,37 @@ export function renderKiosk(app: HTMLElement): void {
     })
     .catch(() => {});
 
-  const showCountdown = (text: string) => {
+  const showCountdown = (text: string, sub?: string) => {
     overlay.replaceChildren(
       h(
         'div',
-        { class: 'text-white font-black drop-shadow-2xl text-[28vh] leading-none animate-pulse' },
-        text,
+        { class: 'flex flex-col items-center gap-2' },
+        sub ? h('div', { class: 'text-white/90 font-semibold text-3xl drop-shadow-lg' }, sub) : '',
+        h(
+          'div',
+          { class: 'text-white font-black drop-shadow-2xl text-[28vh] leading-none animate-pulse' },
+          text,
+        ),
+      ),
+    );
+  };
+
+  // Briefly show a just-taken collage shot with progress.
+  const showShotReview = (photo: Photo, idx: number, total: number) => {
+    overlay.replaceChildren(
+      h(
+        'div',
+        { class: 'absolute inset-0 bg-black/70 grid place-items-center p-6' },
+        h(
+          'div',
+          { class: 'flex flex-col items-center gap-3' },
+          h('div', { class: 'text-white/90 font-semibold text-2xl' }, `Bild ${idx}/${total}`),
+          h('img', {
+            class: 'max-h-[60vh] rounded-2xl shadow-2xl',
+            src: api.photoUrl(photo.token),
+            alt: '',
+          }),
+        ),
       ),
     );
   };
@@ -223,9 +281,27 @@ export function renderKiosk(app: HTMLElement): void {
           }),
           h(
             'div',
-            { class: 'flex gap-3' },
+            { class: 'flex gap-3 flex-wrap justify-center' },
             kcfg.show_print ? printBtn : '',
             h('button', { class: cls.ghost, onclick: () => backToLive() }, t('retake')),
+            kcfg.allow_delete_after_capture
+              ? h(
+                  'button',
+                  {
+                    class:
+                      'rounded-xl bg-red-600/80 hover:bg-red-600 text-white font-medium px-5 py-3 transition',
+                    onclick: async () => {
+                      try {
+                        await api.deletePhoto(photo.token);
+                      } catch {
+                        /* ignore */
+                      }
+                      backToLive();
+                    },
+                  },
+                  t('delete'),
+                )
+              : '',
             kcfg.show_gallery ? h('a', { class: cls.ghost, href: '#/gallery' }, t('toGallery')) : '',
           ),
           printStatus,
@@ -290,7 +366,45 @@ export function renderKiosk(app: HTMLElement): void {
     }
   };
 
+  const collageShoot = async () => {
+    if (busy) return;
+    busy = true;
+    bottomBar.classList.add('hidden');
+    if (mode === 'on_demand') setLive(true);
+    const n = COLLAGE_SHOTS[collageCfg.layout] ?? 4;
+    const tokens: string[] = [];
+    try {
+      for (let s = 0; s < n; s++) {
+        const cd = Math.max(0, Math.min(10, collageCfg.countdown_seconds));
+        for (let i = cd; i >= 1; i--) {
+          showCountdown(String(i), `Bild ${s + 1}/${n}`);
+          beep();
+          await sleep(800);
+        }
+        showCountdown('📸', `Bild ${s + 1}/${n}`);
+        const photo = await api.capture();
+        tokens.push(photo.token);
+        showShotReview(photo, s + 1, n);
+        await sleep(Math.max(0, collageCfg.review_seconds) * 1000);
+      }
+      showCountdown('✨');
+      const collage = await api.composeCollage(tokens, collageCfg.layout);
+      showResult(collage);
+    } catch (e) {
+      overlay.replaceChildren(
+        h(
+          'div',
+          { class: 'text-center text-white bg-red-600/80 rounded-xl px-6 py-4 pointer-events-auto' },
+          h('p', { class: 'font-semibold mb-1' }, t('captureFailed')),
+          h('p', { class: 'text-sm opacity-90' }, e instanceof Error ? e.message : t('unknownError')),
+        ),
+      );
+      setTimeout(backToLive, 2500);
+    }
+  };
+
   shutter.addEventListener('click', shoot);
+  collageBtn.addEventListener('click', collageShoot);
 
   // --- Idle slideshow / screensaver ---
   let idleTimer: number | undefined;

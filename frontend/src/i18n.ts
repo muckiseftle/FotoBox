@@ -21,6 +21,8 @@ const dict: Record<Lang, Record<string, string>> = {
     photos: 'Fotos',
     noPhotos: 'Noch keine Fotos.',
     download: 'Herunterladen',
+    delete: 'Löschen',
+    confirmDelete: 'Dieses Foto löschen?',
   },
   en: {
     gallery: 'Gallery',
@@ -40,6 +42,8 @@ const dict: Record<Lang, Record<string, string>> = {
     photos: 'photos',
     noPhotos: 'No photos yet.',
     download: 'Download',
+    delete: 'Delete',
+    confirmDelete: 'Delete this photo?',
   },
 };
 

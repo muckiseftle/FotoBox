@@ -7,6 +7,7 @@ mod auth;
 mod branding;
 mod camera;
 mod chroma;
+mod collage;
 mod comfort;
 mod error;
 mod kiosk;
@@ -73,7 +74,16 @@ pub fn router(state: AppState) -> Router {
         .route("/camera", get(camera::get_camera).post(camera::set_camera))
         .route("/camera/detect", post(camera::detect_camera))
         .route("/kiosk", get(kiosk::get_kiosk).post(kiosk::set_kiosk))
+        .route(
+            "/collage",
+            get(collage::get_collage).post(collage::set_collage),
+        )
+        .route("/collage/compose", post(collage::compose))
         .route("/photos", get(api::list_photos))
+        .route(
+            "/photos/{token}",
+            axum::routing::delete(api::delete_photo),
+        )
         .route("/capture", post(api::capture))
         .route("/preview/stream", get(stream::preview_stream))
         .route("/setup", get(api::setup_status).post(api::setup_submit))

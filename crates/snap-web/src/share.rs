@@ -21,11 +21,19 @@ pub struct QrQuery {
     data: String,
 }
 
-pub async fn qr(Query(q): Query<QrQuery>) -> Result<Response, ApiError> {
+pub async fn qr(State(st): State<AppState>, Query(q): Query<QrQuery>) -> Result<Response, ApiError> {
     if q.data.is_empty() || q.data.len() > 1024 {
         return Err(ApiError::bad_request("ungültige QR-Daten"));
     }
-    let png = tokio::task::spawn_blocking(move || render_qr(&q.data))
+    // Optionally embed the event logo in the centre of the QR code.
+    let logo = if settings::get_or(&st.db, keys::QR_LOGO, "false").await? == "true" {
+        tokio::fs::read(st.config.data_dir.join("branding/logo.png"))
+            .await
+            .ok()
+    } else {
+        None
+    };
+    let png = tokio::task::spawn_blocking(move || render_qr(&q.data, logo))
         .await
         .map_err(|e| ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))??;
     Ok((
@@ -38,18 +46,46 @@ pub async fn qr(Query(q): Query<QrQuery>) -> Result<Response, ApiError> {
         .into_response())
 }
 
-fn render_qr(data: &str) -> Result<Vec<u8>, ApiError> {
-    use image::Luma;
-    use qrcode::QrCode;
-    let code = QrCode::new(data.as_bytes())
+fn render_qr(data: &str, logo: Option<Vec<u8>>) -> Result<Vec<u8>, ApiError> {
+    use qrcode::{EcLevel, QrCode};
+    // Higher error correction when a logo covers part of the code.
+    let ec = if logo.is_some() {
+        EcLevel::H
+    } else {
+        EcLevel::M
+    };
+    let code = QrCode::with_error_correction_level(data.as_bytes(), ec)
         .map_err(|e| ApiError::new(StatusCode::BAD_REQUEST, e.to_string()))?;
-    let img = code
-        .render::<Luma<u8>>()
-        .min_dimensions(320, 320)
+    let base = code
+        .render::<image::Rgb<u8>>()
+        .min_dimensions(512, 512)
         .quiet_zone(true)
         .build();
+    let mut canvas = image::DynamicImage::ImageRgb8(base).to_rgba8();
+
+    if let Some(bytes) = logo {
+        if let Ok(logo_img) = snap_imaging::decode(&bytes) {
+            let (w, h) = (canvas.width(), canvas.height());
+            let box_sz = w * 30 / 100;
+            let logo_sz = w * 24 / 100;
+            // White rounded backing so the logo stays scannable.
+            let (bx, by) = ((w - box_sz) / 2, (h - box_sz) / 2);
+            for yy in by..by + box_sz {
+                for xx in bx..bx + box_sz {
+                    canvas.put_pixel(xx, yy, image::Rgba([255, 255, 255, 255]));
+                }
+            }
+            let small = logo_img
+                .resize(logo_sz, logo_sz, image::imageops::FilterType::Lanczos3)
+                .to_rgba8();
+            let lx = ((w - small.width()) / 2) as i64;
+            let ly = ((h - small.height()) / 2) as i64;
+            image::imageops::overlay(&mut canvas, &small, lx, ly);
+        }
+    }
+
     let mut buf = std::io::Cursor::new(Vec::new());
-    image::DynamicImage::ImageLuma8(img)
+    image::DynamicImage::ImageRgba8(canvas)
         .write_to(&mut buf, image::ImageFormat::Png)
         .map_err(|e| ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
     Ok(buf.into_inner())
@@ -97,6 +133,7 @@ fn render_download_html(token: &str, event: &str, email_enabled: bool, lang: &st
     let l_sending = if en { "Sending …" } else { "Sende …" };
     let l_sent = if en { "Sent ✓" } else { "Gesendet ✓" };
     let l_error = if en { "Error" } else { "Fehler" };
+    let l_share = if en { "Save / Share" } else { "Speichern / Teilen" };
     let email_form = if email_enabled {
         format!(
             r#"<form id="ef" onsubmit="return sendMail(event)">
@@ -133,7 +170,29 @@ fn render_download_html(token: &str, event: &str, email_enabled: bool, lang: &st
 </style></head><body><div class="wrap">
   <h1>{event}</h1>
   <img class="photo" src="/p/{token}" alt="Foto"/>
-  <div><a class="btn" href="/p/{token}" download="{token}.jpg">{l_download}</a></div>
+  <div>
+    <a class="btn" href="/p/{token}" download="{token}.jpg">{l_download}</a>
+    <button id="shareBtn" class="btn" style="display:none">{l_share}</button>
+  </div>
+  <script>
+    (function(){{
+      var b=document.getElementById('shareBtn');
+      if(!navigator.canShare) return;
+      b.style.display='inline-block';
+      b.addEventListener('click', async function(){{
+        try{{
+          var res=await fetch('/p/{token}');
+          var blob=await res.blob();
+          var file=new File([blob], '{token}.jpg', {{type: blob.type || 'image/jpeg'}});
+          if(navigator.canShare({{files:[file]}})){{
+            await navigator.share({{files:[file], title:'{event}'}});
+          }} else {{
+            await navigator.share({{title:'{event}', url: location.href}});
+          }}
+        }}catch(e){{}}
+      }});
+    }})();
+  </script>
   {email_form}
 </div></body></html>"#
     )

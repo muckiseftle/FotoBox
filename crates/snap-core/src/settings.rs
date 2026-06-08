@@ -64,6 +64,24 @@ pub mod keys {
     pub const KIOSK_SHOW_QR: &str = "kiosk_show_qr";
     /// Auto-return to the live view after a capture, in seconds (0 = manual).
     pub const KIOSK_RESULT_SECONDS: &str = "kiosk_result_seconds";
+    /// Embed the event logo in the centre of generated QR codes.
+    pub const QR_LOGO: &str = "qr_logo";
+    /// Allow guests to delete a photo from the gallery.
+    pub const ALLOW_DELETE_GALLERY: &str = "allow_delete_gallery";
+    /// Allow guests to delete the photo they just took, on the result screen.
+    pub const ALLOW_DELETE_AFTER_CAPTURE: &str = "allow_delete_after_capture";
+    /// Auto-return from the gallery to the kiosk after N idle seconds (0 = off).
+    pub const GALLERY_IDLE_SECONDS: &str = "gallery_idle_seconds";
+
+    // Collage / multi-shot.
+    /// Allow guests to take a multi-shot collage.
+    pub const COLLAGE_ENABLED: &str = "collage_enabled";
+    /// Layout id: `grid2x2`, `strip1x3`, `strip1x4`, `duo1x2`, `grid2x3`.
+    pub const COLLAGE_LAYOUT: &str = "collage_layout";
+    /// Countdown seconds before each shot of a collage.
+    pub const COLLAGE_COUNTDOWN: &str = "collage_countdown";
+    /// Seconds each captured shot is shown before the next countdown begins.
+    pub const COLLAGE_REVIEW: &str = "collage_review";
 }
 
 /// Fetch a raw setting value, if present.

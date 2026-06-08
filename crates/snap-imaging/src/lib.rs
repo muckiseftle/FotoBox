@@ -59,6 +59,29 @@ pub fn decode(bytes: &[u8]) -> Result<DynamicImage> {
     Ok(img)
 }
 
+/// Compose several shots into a single collage on a white background.
+///
+/// Images fill `cols`×`rows` cells (cropped to each cell's 4:3 aspect). Extra
+/// shots beyond `cols*rows` are ignored; missing cells stay white.
+pub fn compose_collage(shots: &[DynamicImage], cols: u32, rows: u32) -> DynamicImage {
+    use image::{imageops, Rgb, RgbImage};
+    let (cell_w, cell_h, gap) = (640u32, 480u32, 24u32);
+    let w = cols * cell_w + gap * (cols + 1);
+    let h = rows * cell_h + gap * (rows + 1);
+    let mut canvas = RgbImage::from_pixel(w, h, Rgb([255, 255, 255]));
+    for (i, shot) in shots.iter().enumerate().take((cols * rows) as usize) {
+        let i = i as u32;
+        let (cx, cy) = (i % cols, i / cols);
+        let x = (gap + cx * (cell_w + gap)) as i64;
+        let y = (gap + cy * (cell_h + gap)) as i64;
+        let cell = shot
+            .resize_to_fill(cell_w, cell_h, imageops::FilterType::Lanczos3)
+            .to_rgb8();
+        imageops::overlay(&mut canvas, &cell, x, y);
+    }
+    DynamicImage::ImageRgb8(canvas)
+}
+
 /// Encode an image as JPEG at the given quality (0–100).
 pub fn encode_jpeg(img: &DynamicImage, quality: u8) -> Result<Vec<u8>> {
     let rgb = img.to_rgb8();

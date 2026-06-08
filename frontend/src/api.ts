@@ -104,7 +104,28 @@ export interface KioskSettings {
   show_print: boolean;
   show_qr: boolean;
   result_seconds: number;
+  qr_logo: boolean;
+  allow_delete_gallery: boolean;
+  allow_delete_after_capture: boolean;
+  gallery_idle_seconds: number;
 }
+
+export interface CollageSettings {
+  enabled: boolean;
+  /** grid2x2 | strip1x3 | strip1x4 | duo1x2 | grid2x3 */
+  layout: string;
+  countdown_seconds: number;
+  review_seconds: number;
+}
+
+/** Shots per collage layout (kept in sync with the backend layout_dims). */
+export const COLLAGE_SHOTS: Record<string, number> = {
+  grid2x2: 4,
+  strip1x3: 3,
+  strip1x4: 4,
+  duo1x2: 2,
+  grid2x3: 6,
+};
 
 export interface EmailSettings {
   enabled: boolean;
@@ -206,8 +227,25 @@ export const api = {
     }),
 
   capture: () => request<Photo>('/api/capture', { method: 'POST' }),
+  deletePhoto: (token: string) =>
+    request<{ ok: boolean }>(`/api/photos/${token}`, { method: 'DELETE' }),
   photos: (limit = 60, offset = 0) =>
     request<Photo[]>(`/api/photos?limit=${limit}&offset=${offset}`),
+
+  // Collage / multi-shot
+  getCollage: () => request<CollageSettings>('/api/collage'),
+  setCollage: (s: CollageSettings) =>
+    request<{ ok: boolean }>('/api/collage', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(s),
+    }),
+  composeCollage: (tokens: string[], layout: string) =>
+    request<Photo>('/api/collage/compose', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tokens, layout }),
+    }),
   photoUrl: (token: string) => `/p/${token}`,
   thumbUrl: (token: string) => `/p/${token}/thumb`,
   previewStream: () => '/api/preview/stream',

@@ -126,6 +126,31 @@ async fn render_capture(st: &AppState, jpeg: Vec<u8>) -> Result<Vec<u8>, ApiErro
     Ok(out)
 }
 
+/// Delete a photo (guest action). Allowed only when at least one of the delete
+/// toggles is enabled; the frontend decides which contexts show the button.
+pub async fn delete_photo(
+    State(st): State<AppState>,
+    Path(token): Path<String>,
+) -> Result<Json<Value>, ApiError> {
+    let gallery = settings::get_or(&st.db, settings::keys::ALLOW_DELETE_GALLERY, "false").await?
+        == "true";
+    let after = settings::get_or(&st.db, settings::keys::ALLOW_DELETE_AFTER_CAPTURE, "false")
+        .await?
+        == "true";
+    if !gallery && !after {
+        return Err(ApiError::new(
+            StatusCode::FORBIDDEN,
+            "Löschen ist deaktiviert",
+        ));
+    }
+    let photo = Photo::delete_by_token(&st.db, &token).await?;
+    let _ = tokio::fs::remove_file(st.config.photos_dir.join(&photo.original_path)).await;
+    if let Some(t) = photo.thumb_path {
+        let _ = tokio::fs::remove_file(st.config.photos_dir.join(&t)).await;
+    }
+    Ok(Json(json!({ "ok": true })))
+}
+
 /// Serve a photo's full-resolution original by its public share token.
 pub async fn photo_file(
     State(st): State<AppState>,
