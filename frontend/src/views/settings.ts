@@ -1,6 +1,5 @@
 import { api, type Comfort } from '../api';
 import { h, clear, cls, adminPage } from '../ui';
-import { setLang, type Lang } from '../i18n';
 
 function field(label: string, input: HTMLElement): HTMLElement {
   return h(
@@ -27,15 +26,7 @@ export async function renderSettings(app: HTMLElement): Promise<void> {
     /* ignore */
   }
 
-  // ---- Language & slideshow ----
-  const lang = h(
-    'select',
-    { class: cls.input },
-    h('option', { value: 'de' }, 'Deutsch'),
-    h('option', { value: 'en' }, 'English'),
-  ) as HTMLSelectElement;
-  lang.value = c.language;
-
+  // ---- Slideshow ----
   const ssEnabled = h('input', { type: 'checkbox', class: 'w-5 h-5 accent-brand' }) as HTMLInputElement;
   ssEnabled.checked = c.slideshow_enabled;
   const ssIdle = h('input', { type: 'number', min: 0, max: 3600, value: c.slideshow_idle, class: cls.input }) as HTMLInputElement;
@@ -49,12 +40,11 @@ export async function renderSettings(app: HTMLElement): Promise<void> {
       onclick: async () => {
         try {
           await api.setComfort({
-            language: lang.value,
+            language: c.language, // language is edited under „Allgemein"
             slideshow_enabled: ssEnabled.checked,
             slideshow_idle: Number(ssIdle.value) || 0,
             slideshow_interval: Number(ssInterval.value) || 5,
           });
-          setLang(lang.value as Lang);
           comfortMsg.textContent = 'Gespeichert ✓';
           setTimeout(() => (comfortMsg.textContent = ''), 2000);
         } catch (e) {
@@ -106,12 +96,11 @@ export async function renderSettings(app: HTMLElement): Promise<void> {
   app.append(
     adminPage(
       'comfort',
-      h('h1', { class: 'text-xl font-bold mb-4' }, 'Komfort'),
+      h('h1', { class: 'text-xl font-bold mb-4' }, 'Diashow & Sicherung'),
       h(
         'div',
         { class: cls.card + ' mb-6 space-y-3' },
-        h('h2', { class: 'font-semibold' }, 'Sprache & Diashow'),
-        field('Sprache (Standard)', lang),
+        h('h2', { class: 'font-semibold' }, 'Diashow / Bildschirmschoner'),
         h('label', { class: 'flex items-center gap-3' }, ssEnabled, 'Diashow / Bildschirmschoner aktiv'),
         field('Start nach Leerlauf (Sekunden, 0 = aus)', ssIdle),
         field('Sekunden pro Bild', ssInterval),

@@ -12,6 +12,8 @@ import { renderShare } from './views/teilen';
 import { renderKioskSettings } from './views/kiosk-settings';
 import { renderSettings } from './views/settings';
 import { renderCamera } from './views/camera';
+import { renderCapture } from './views/capture';
+import { renderCollage } from './views/collage';
 import { renderLogin } from './views/login';
 import { applyTheme } from './theme';
 import { initLang } from './i18n';
@@ -37,7 +39,7 @@ async function route(): Promise<void> {
   }
 
   // Admin routes require an authenticated session.
-  const adminRoutes = ['/admin', '/camera', '/kiosk-settings', '/chroma', '/print', '/design', '/share', '/settings'];
+  const adminRoutes = ['/admin', '/camera', '/capture', '/collage', '/kiosk-settings', '/chroma', '/print', '/design', '/share', '/settings'];
   if (adminRoutes.includes(hash)) {
     let authed = false;
     try {
@@ -57,6 +59,10 @@ async function route(): Promise<void> {
       return renderAdmin(app!);
     case '/camera':
       return renderCamera(app!);
+    case '/capture':
+      return renderCapture(app!);
+    case '/collage':
+      return renderCollage(app!);
     case '/kiosk-settings':
       return renderKioskSettings(app!);
     case '/chroma':

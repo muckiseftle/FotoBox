@@ -3,7 +3,7 @@
 ; Produces a normal installer with Start-menu/desktop shortcuts and an uninstaller.
 
 #define MyAppName "SnapStation"
-#define MyAppVersion "0.6.1"
+#define MyAppVersion "0.6.2"
 
 [Setup]
 AppName={#MyAppName}

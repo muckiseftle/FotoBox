@@ -78,32 +78,57 @@ export function page(active: 'gallery' | 'admin', ...content: (Node | string)[])
 /** Admin section identifiers for the sidebar. */
 export type AdminKey =
   | 'dashboard'
+  | 'setup'
   | 'camera'
-  | 'kiosk'
+  | 'capture'
+  | 'collage'
   | 'chroma'
   | 'print'
-  | 'design'
   | 'share'
-  | 'comfort'
-  | 'setup';
+  | 'design'
+  | 'kiosk'
+  | 'comfort';
 
 /** Admin layout with a left sidebar menu (responsive: sidebar on desktop,
  *  horizontal scroll row on mobile). */
 export function adminPage(active: AdminKey, ...content: (Node | string)[]): HTMLElement {
-  const items: { key: AdminKey; href: string; label: string }[] = [
-    { key: 'dashboard', href: '#/admin', label: 'Dashboard' },
-    { key: 'camera', href: '#/camera', label: 'Kamera' },
-    { key: 'kiosk', href: '#/kiosk-settings', label: 'Kiosk' },
-    { key: 'chroma', href: '#/chroma', label: 'Chroma-Key' },
-    { key: 'print', href: '#/print', label: 'Drucken' },
-    { key: 'design', href: '#/design', label: 'Design' },
-    { key: 'share', href: '#/share', label: 'Teilen' },
-    { key: 'comfort', href: '#/settings', label: 'Komfort' },
-    { key: 'setup', href: '#/setup', label: 'Einrichtung' },
+  const groups: { title: string; items: { key: AdminKey; href: string; label: string }[] }[] = [
+    {
+      title: 'Allgemein',
+      items: [
+        { key: 'dashboard', href: '#/admin', label: 'Übersicht' },
+        { key: 'setup', href: '#/setup', label: 'Allgemein' },
+      ],
+    },
+    {
+      title: 'Aufnahme',
+      items: [
+        { key: 'camera', href: '#/camera', label: 'Kamera' },
+        { key: 'capture', href: '#/capture', label: 'Aufnahme' },
+        { key: 'collage', href: '#/collage', label: 'Collage' },
+        { key: 'chroma', href: '#/chroma', label: 'Chroma-Key' },
+      ],
+    },
+    {
+      title: 'Teilen & Druck',
+      items: [
+        { key: 'print', href: '#/print', label: 'Drucken' },
+        { key: 'share', href: '#/share', label: 'Teilen' },
+      ],
+    },
+    {
+      title: 'Anzeige & Komfort',
+      items: [
+        { key: 'design', href: '#/design', label: 'Design' },
+        { key: 'kiosk', href: '#/kiosk-settings', label: 'Kiosk' },
+        { key: 'comfort', href: '#/settings', label: 'Diashow & Sicherung' },
+      ],
+    },
   ];
   const itemCls = (on: boolean) =>
     'block px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap ' +
     (on ? 'bg-brand text-slate-950' : 'text-slate-300 hover:bg-slate-800');
+  const groupTitleCls = 'px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500 shrink-0';
   const footerItem = 'text-left block px-3 py-2 rounded-lg text-sm text-slate-400 hover:bg-slate-800';
 
   const sidebar = h(
@@ -111,14 +136,19 @@ export function adminPage(active: AdminKey, ...content: (Node | string)[]): HTML
     {
       class:
         cls.card +
-        ' md:w-56 shrink-0 md:sticky md:top-4 md:h-[calc(100vh-2rem)] flex md:flex-col gap-2 ' +
-        'overflow-x-auto md:overflow-visible',
+        ' md:w-60 shrink-0 md:sticky md:top-4 md:h-[calc(100vh-2rem)] flex md:flex-col gap-2 ' +
+        'overflow-x-auto md:overflow-y-auto md:overflow-x-visible',
     },
     h('a', { href: '#/', class: 'text-lg font-bold tracking-tight px-1 mb-1 shrink-0' }, 'SnapStation'),
     h(
       'nav',
       { class: 'flex md:flex-col gap-1' },
-      ...items.map((it) => h('a', { href: it.href, class: itemCls(active === it.key) }, it.label)),
+      ...groups.flatMap((g) => [
+        h('div', { class: groupTitleCls }, g.title),
+        ...g.items.map((it) =>
+          h('a', { href: it.href, class: itemCls(active === it.key) }, it.label),
+        ),
+      ]),
     ),
     h(
       'div',

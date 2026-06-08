@@ -94,7 +94,7 @@ export async function renderKioskSettings(app: HTMLElement): Promise<void> {
       h(
         'div',
         { class: cls.card + ' space-y-2' },
-        h('h2', { class: 'font-semibold' }, 'Automatik'),
+        h('h2', { class: 'font-semibold' }, 'Anzeigedauer & Automatik'),
         numField(
           'Ergebnis automatisch ausblenden nach (Sekunden, 0 = manuell)',
           result,
