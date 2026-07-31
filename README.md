@@ -53,6 +53,15 @@ am Kiosk-Bildschirm genauso wie vom Handy aus.
 > Alternativ von Hand: App nach „Programme" ziehen und im Terminal einmalig
 > `xattr -cr /Applications/SnapStation.app` ausführen, danach startet die App normal.
 
+> **Safari: „Die Steuerung ist fehlgeschlagen … Modus ‚HTTPS-Only'" (WebKitErrorDomain:305)?**
+> SnapStation läuft lokal über HTTP (`http://localhost:8080`). Safaris Modus
+> „Nur HTTPS" / „Vor dem Verbinden über HTTP warnen" blockiert das in manchen
+> Safari-Versionen komplett — ein [bekannter Safari-Fehler](https://bugs.webkit.org/show_bug.cgi?id=284559),
+> den Apple inzwischen behoben hat. Bis das Update ankommt:
+> **Safari → Einstellungen → Erweitert** → die Option „Vor dem Verbinden mit einer
+> Website über HTTP warnen" (bzw. „Nur HTTPS") **deaktivieren** — oder SnapStation
+> einfach in einem anderen Browser (Chrome, Firefox) unter `http://localhost:8080` öffnen.
+
 ## 🖥️ Bedienung
 
 - **Kiosk** (`/`) – die Gäste-Vollbildansicht: auslösen, Countdown, Ergebnis mit Drucken & QR-Code.

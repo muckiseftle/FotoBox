@@ -18,9 +18,11 @@ async fn main() -> anyhow::Result<()> {
 
     let bind = config.bind;
     // A 0.0.0.0/:: bind is reachable on the LAN, but for the local browser we
-    // open the loopback address.
-    let host = if bind.ip().is_unspecified() {
-        "127.0.0.1".to_string()
+    // open the loopback address. "localhost" instead of "127.0.0.1": Safari's
+    // HTTPS-Only mode blocks plain-HTTP loopback URLs (WebKitErrorDomain:305,
+    // WebKit bug 284559); the name form is what WebKit's exemption targets.
+    let host = if bind.ip().is_unspecified() || bind.ip().is_loopback() {
+        "localhost".to_string()
     } else {
         bind.ip().to_string()
     };
