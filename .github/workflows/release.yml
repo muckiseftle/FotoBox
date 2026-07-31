@@ -9,14 +9,39 @@ name: Release
 on:
   push:
     tags: ["v*"]
+    branches: ["main"]
   workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
+  # Decide whether this run should produce a release: always on tag pushes;
+  # on main pushes / manual runs only when the Cargo.toml version has no
+  # release tag yet. This lets a plain version bump on main trigger a release
+  # (useful when tags cannot be pushed directly, e.g. from remote sessions).
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      proceed: ${{ steps.check.outputs.proceed }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: check
+        run: |
+          TAG="v$(sed -n 's/^version *= *"\(.*\)"/\1/p' Cargo.toml | head -1)"
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            echo "proceed=true" >> "$GITHUB_OUTPUT"
+          elif git ls-remote --tags origin "refs/tags/$TAG" | grep -q .; then
+            echo "Tag $TAG existiert bereits – kein neues Release."
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "proceed=true" >> "$GITHUB_OUTPUT"
+          fi
+
   # Build the PWA once; every OS build embeds the same assets via rust-embed.
   frontend:
+    needs: check
+    if: needs.check.outputs.proceed == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -210,4 +235,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
+          target_commitish: ${{ github.sha }}
           files: dist/*
