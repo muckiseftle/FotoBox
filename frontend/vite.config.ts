@@ -9,8 +9,9 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icon.svg'],
+      includeAssets: ['icon.svg', 'icon-192.png', 'icon-512.png', 'gallery.svg'],
       manifest: {
+        id: '/',
         name: 'SnapStation',
         short_name: 'SnapStation',
         description: 'Event-Foto-Station',

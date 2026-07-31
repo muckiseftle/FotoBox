@@ -62,6 +62,23 @@ am Kiosk-Bildschirm genauso wie vom Handy aus.
 > Website über HTTP warnen" (bzw. „Nur HTTPS") **deaktivieren** — oder SnapStation
 > einfach in einem anderen Browser (Chrome, Firefox) unter `http://localhost:8080` öffnen.
 
+## 📲 Als App installieren (PWA)
+
+SnapStation ist eine installierbare Web-App — einmal installiert, startet sie
+wie eine native App im Vollbild (eigenes Icon, ohne Browser-Leiste):
+
+| Gerät | So installierst du |
+|-------|--------------------|
+| **iPhone/iPad** (Safari) | Seite öffnen → **Teilen-Symbol** → **„Zum Home-Bildschirm"** |
+| **Android** (Chrome) | Menü **⋮** → **„App installieren"** bzw. „Zum Startbildschirm hinzufügen" |
+| **Mac** (Safari) | Menü **Ablage → „Zum Dock hinzufügen"** |
+| **Mac/Windows/Linux** (Chrome/Edge) | **Installieren-Symbol** rechts in der Adressleiste (Monitor mit Pfeil) |
+
+> Hinweis: Die „echte" PWA-Installation mit Offline-Cache bieten Chrome & Co. nur
+> auf dem Rechner selbst (`localhost`) oder über HTTPS an. Vom Handy aus (über die
+> WLAN-Adresse) funktioniert „Zum Home-Bildschirm" auf iOS und Android trotzdem —
+> die App öffnet dann im Vollbild mit eigenem Icon.
+
 ## 🖥️ Bedienung
 
 - **Kiosk** (`/`) – die Gäste-Vollbildansicht: auslösen, Countdown, Ergebnis mit Drucken & QR-Code.

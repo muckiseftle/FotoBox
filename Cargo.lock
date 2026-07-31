@@ -3488,7 +3488,7 @@ dependencies = [
 
 [[package]]
 name = "snap-bin"
-version = "0.6.4"
+version = "0.6.5"
 dependencies = [
  "anyhow",
  "open",
@@ -3504,7 +3504,7 @@ dependencies = [
 
 [[package]]
 name = "snap-camera"
-version = "0.6.4"
+version = "0.6.5"
 dependencies = [
  "bytes",
  "gphoto2",
@@ -3519,7 +3519,7 @@ dependencies = [
 
 [[package]]
 name = "snap-core"
-version = "0.6.4"
+version = "0.6.5"
 dependencies = [
  "chrono",
  "dirs",
@@ -3536,7 +3536,7 @@ dependencies = [
 
 [[package]]
 name = "snap-imaging"
-version = "0.6.4"
+version = "0.6.5"
 dependencies = [
  "image",
  "rayon",
@@ -3548,7 +3548,7 @@ dependencies = [
 
 [[package]]
 name = "snap-print"
-version = "0.6.4"
+version = "0.6.5"
 dependencies = [
  "serde",
  "serde_json",
@@ -3560,7 +3560,7 @@ dependencies = [
 
 [[package]]
 name = "snap-web"
-version = "0.6.4"
+version = "0.6.5"
 dependencies = [
  "argon2",
  "async-stream",
