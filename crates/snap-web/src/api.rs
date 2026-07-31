@@ -132,8 +132,8 @@ pub async fn delete_photo(
     State(st): State<AppState>,
     Path(token): Path<String>,
 ) -> Result<Json<Value>, ApiError> {
-    let gallery = settings::get_or(&st.db, settings::keys::ALLOW_DELETE_GALLERY, "false").await?
-        == "true";
+    let gallery =
+        settings::get_or(&st.db, settings::keys::ALLOW_DELETE_GALLERY, "false").await? == "true";
     let after = settings::get_or(&st.db, settings::keys::ALLOW_DELETE_AFTER_CAPTURE, "false")
         .await?
         == "true";

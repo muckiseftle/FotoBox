@@ -21,7 +21,10 @@ pub struct QrQuery {
     data: String,
 }
 
-pub async fn qr(State(st): State<AppState>, Query(q): Query<QrQuery>) -> Result<Response, ApiError> {
+pub async fn qr(
+    State(st): State<AppState>,
+    Query(q): Query<QrQuery>,
+) -> Result<Response, ApiError> {
     if q.data.is_empty() || q.data.len() > 1024 {
         return Err(ApiError::bad_request("ungültige QR-Daten"));
     }
@@ -133,7 +136,11 @@ fn render_download_html(token: &str, event: &str, email_enabled: bool, lang: &st
     let l_sending = if en { "Sending …" } else { "Sende …" };
     let l_sent = if en { "Sent ✓" } else { "Gesendet ✓" };
     let l_error = if en { "Error" } else { "Fehler" };
-    let l_share = if en { "Save / Share" } else { "Speichern / Teilen" };
+    let l_share = if en {
+        "Save / Share"
+    } else {
+        "Speichern / Teilen"
+    };
     let email_form = if email_enabled {
         format!(
             r#"<form id="ef" onsubmit="return sendMail(event)">

@@ -10,9 +10,9 @@ use axum::Json;
 use chrono::Local;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use snap_core::ids;
 use snap_core::models::{NewPhoto, Photo};
 use snap_core::settings::{self, keys};
-use snap_core::ids;
 
 #[derive(Serialize, Deserialize)]
 pub struct CollageSettings {
@@ -115,16 +115,17 @@ pub async fn compose(
     }
 
     // Compose off the async runtime (CPU-bound).
-    let jpeg = tokio::task::spawn_blocking(move || -> Result<Vec<u8>, snap_imaging::ImagingError> {
-        let imgs = sources
-            .iter()
-            .map(|b| snap_imaging::decode(b))
-            .collect::<Result<Vec<_>, _>>()?;
-        let collage = snap_imaging::compose_collage(&imgs, cols, rows);
-        snap_imaging::encode_jpeg(&collage, 90)
-    })
-    .await
-    .map_err(|e| ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))??;
+    let jpeg =
+        tokio::task::spawn_blocking(move || -> Result<Vec<u8>, snap_imaging::ImagingError> {
+            let imgs = sources
+                .iter()
+                .map(|b| snap_imaging::decode(b))
+                .collect::<Result<Vec<_>, _>>()?;
+            let collage = snap_imaging::compose_collage(&imgs, cols, rows);
+            snap_imaging::encode_jpeg(&collage, 90)
+        })
+        .await
+        .map_err(|e| ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))??;
 
     // Save the collage as a new photo.
     let rel_dir = Local::now().format("%Y/%m").to_string();

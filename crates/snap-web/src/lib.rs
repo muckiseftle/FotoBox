@@ -41,7 +41,10 @@ use tower_http::trace::TraceLayer;
 async fn security_headers(req: Request, next: Next) -> Response {
     let mut res = next.run(req).await;
     let h = res.headers_mut();
-    h.insert("X-Content-Type-Options", HeaderValue::from_static("nosniff"));
+    h.insert(
+        "X-Content-Type-Options",
+        HeaderValue::from_static("nosniff"),
+    );
     h.insert("X-Frame-Options", HeaderValue::from_static("DENY"));
     h.insert("Referrer-Policy", HeaderValue::from_static("no-referrer"));
     h.insert(
@@ -85,10 +88,7 @@ pub fn router(state: AppState) -> Router {
         )
         .route("/collage/compose", post(collage::compose))
         .route("/photos", get(api::list_photos))
-        .route(
-            "/photos/{token}",
-            axum::routing::delete(api::delete_photo),
-        )
+        .route("/photos/{token}", axum::routing::delete(api::delete_photo))
         .route("/capture", post(api::capture))
         .route("/preview/stream", get(stream::preview_stream))
         .route("/setup", get(api::setup_status).post(api::setup_submit))
