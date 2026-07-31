@@ -37,13 +37,21 @@ am Kiosk-Bildschirm genauso wie vom Handy aus.
    | System | Datei | Start |
    |--------|-------|-------|
    | **Windows** | `SnapStation-Setup.exe` (oder portables `.zip`) | Installieren bzw. `snapstation.exe` doppelklicken |
-   | **macOS** | `SnapStation.dmg` | In „Programme" ziehen, öffnen |
+   | **macOS** | `SnapStation-macos.dmg` | DMG öffnen → Doppelklick auf `Installieren.command` (siehe Hinweis unten) |
    | **Linux** | `install.sh` (Station) oder portables `.tar.gz` | `sudo bash install.sh` bzw. `./snapstation` |
 
 2. **Starten.** SnapStation öffnet automatisch den Browser auf `http://localhost:8080`.
 3. **Ersteinrichtung:** Admin-Passwort, Event-Name und Sprache festlegen — fertig.
 
 > Vom Handy aus erreichbar: Rechner und Handy im selben WLAN, dann `http://<IP-des-Rechners>:8080` öffnen (oder den QR-Code am Kiosk scannen).
+
+> **macOS: „SnapStation ist beschädigt und kann nicht geöffnet werden"?**
+> Die App ist **nicht** defekt. SnapStation ist ein Open-Source-Projekt ohne bezahltes
+> Apple-Entwicklerzertifikat; macOS markiert nicht notarisierte Downloads pauschal als
+> „beschädigt" (Gatekeeper-Quarantäne). Lösung: Im DMG einfach `Installieren.command`
+> doppelklicken — das Skript kopiert die App nach „Programme" und entfernt die Markierung.
+> Alternativ von Hand: App nach „Programme" ziehen und im Terminal einmalig
+> `xattr -cr /Applications/SnapStation.app` ausführen, danach startet die App normal.
 
 ## 🖥️ Bedienung
 

@@ -92,30 +92,80 @@ jobs:
           Copy-Item installer/windows/Output/*.exe dist/
 
       # ---- macOS: .app bundle inside a .dmg ----
+      # There is no Apple Developer certificate, so the app cannot be notarized.
+      # Gatekeeper shows "ist beschädigt" for downloaded apps that are unsigned —
+      # an ad-hoc signature plus a first-start helper script (removes the
+      # quarantine flag) makes the DMG usable without a paid certificate.
       - name: Package macOS
         if: matrix.os == 'macos-latest'
         run: |
           mkdir -p dist
+          VERSION="$(sed -n 's/^version *= *"\(.*\)"/\1/p' Cargo.toml | head -1)"
           APP="SnapStation.app/Contents/MacOS"
           mkdir -p "$APP" "SnapStation.app/Contents/Resources"
           cp target/release/snapstation "$APP/SnapStation"
           cp branding/icon.icns "SnapStation.app/Contents/Resources/AppIcon.icns"
-          cat > SnapStation.app/Contents/Info.plist <<'PLIST'
+          cat > SnapStation.app/Contents/Info.plist <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0"><dict>
             <key>CFBundleName</key><string>SnapStation</string>
             <key>CFBundleDisplayName</key><string>SnapStation</string>
             <key>CFBundleIdentifier</key><string>com.snapstation.app</string>
-            <key>CFBundleVersion</key><string>0.5.0</string>
-            <key>CFBundleShortVersionString</key><string>0.5.0</string>
+            <key>CFBundleVersion</key><string>${VERSION}</string>
+            <key>CFBundleShortVersionString</key><string>${VERSION}</string>
             <key>CFBundleExecutable</key><string>SnapStation</string>
             <key>CFBundleIconFile</key><string>AppIcon</string>
             <key>CFBundlePackageType</key><string>APPL</string>
+            <key>LSMinimumSystemVersion</key><string>11.0</string>
+            <key>NSHighResolutionCapable</key><true/>
             <key>NSCameraUsageDescription</key><string>SnapStation benötigt die Kamera für Foto-Aufnahmen.</string>
           </dict></plist>
           PLIST
-          hdiutil create -volname SnapStation -srcfolder SnapStation.app -ov -format UDZO dist/SnapStation-macos.dmg
+          # Ad-hoc signature: mandatory on Apple Silicon (unsigned binaries are
+          # killed on launch) and keeps the bundle's code seal consistent.
+          codesign --force --deep --sign - SnapStation.app
+          codesign --verify --deep --strict SnapStation.app
+
+          # DMG layout: app + Applications shortcut + install helper that
+          # copies the app and strips com.apple.quarantine in one double click.
+          mkdir -p dmg
+          cp -R SnapStation.app dmg/
+          ln -s /Applications dmg/Programme
+          cat > "dmg/Installieren.command" <<'CMD'
+          #!/bin/bash
+          # SnapStation nach /Applications kopieren und die Gatekeeper-Quarantäne
+          # entfernen (die App ist nicht notarisiert, sonst meldet macOS
+          # faelschlich "SnapStation ist beschaedigt").
+          set -e
+          DIR="$(cd "$(dirname "$0")" && pwd)"
+          echo "Installiere SnapStation nach /Applications ..."
+          rm -rf /Applications/SnapStation.app
+          cp -R "$DIR/SnapStation.app" /Applications/
+          xattr -cr /Applications/SnapStation.app
+          echo "Fertig! SnapStation wird gestartet ..."
+          open /Applications/SnapStation.app
+          CMD
+          chmod +x "dmg/Installieren.command"
+          cat > "dmg/BITTE LESEN.txt" <<'TXT'
+          SnapStation unter macOS installieren
+          ====================================
+
+          Empfohlen: Doppelklick auf "Installieren.command".
+          (Falls macOS auch dieses Skript blockiert: Rechtsklick -> Oeffnen.)
+
+          Alternativ von Hand:
+          1. SnapStation.app in den Ordner "Programme" ziehen.
+          2. Terminal oeffnen und einmalig ausfuehren:
+             xattr -cr /Applications/SnapStation.app
+          3. SnapStation normal starten.
+
+          Hintergrund: SnapStation ist ein Open-Source-Projekt ohne bezahltes
+          Apple-Entwicklerzertifikat. macOS markiert Downloads ohne Apple-
+          Notarisierung als "beschaedigt" - die App ist es nicht. Der Befehl
+          oben entfernt nur diese Markierung.
+          TXT
+          hdiutil create -volname SnapStation -srcfolder dmg -ov -format UDZO dist/SnapStation-macos.dmg
 
       # ---- Linux: portable tarball (binary + station installer) ----
       - name: Package Linux
